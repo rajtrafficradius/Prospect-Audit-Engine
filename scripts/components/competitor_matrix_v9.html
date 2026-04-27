@@ -1,0 +1,49 @@
+<div class="comparison-matrix glass">
+    <div class="matrix-header">
+        <div class="h-cell">Metric</div>
+        <div class="h-cell">Suncity Air</div>
+        <div class="h-cell">Competitor Avg</div>
+    </div>
+    <div class="matrix-body" id="matrixRows">
+        <div class="m-row">
+            <div class="m-cell lbl">Authority Score</div>
+            <div class="m-cell val">24</div>
+            <div class="m-cell val bad">42</div>
+        </div>
+        <div class="m-row">
+            <div class="m-cell lbl">AEO Trust</div>
+            <div class="m-cell val good">88%</div>
+            <div class="m-cell val">65%</div>
+        </div>
+    </div>
+</div>
+
+<style>
+.comparison-matrix {
+    width: 100%;
+    border-radius: 40px;
+    overflow: hidden;
+    border: 1px solid var(--glass-border);
+}
+.matrix-header {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 30px 40px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent);
+}
+.m-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    padding: 25px 40px;
+    border-top: 1px solid var(--glass-border);
+    align-items: center;
+}
+.m-cell.lbl { font-weight: 500; font-size: 28px; }
+.m-cell.val { text-align: center; font-size: 32px; font-weight: 800; }
+.m-cell.good { color: #10B981; }
+.m-cell.bad { color: #EF4444; }
+</style>

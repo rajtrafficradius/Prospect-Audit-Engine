@@ -1,0 +1,104 @@
+<style>
+    .v14-arch-container {
+        width: 1400px; /* Increased from 1000px */
+        height: 750px; /* Increased from 700px */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 30px; /* Increased from 20px */
+        perspective: 1200px;
+    }
+
+    .arch-layer {
+        width: var(--w);
+        height: 160px;
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid var(--accent);
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        padding: 0 60px;
+        position: relative;
+        transform: rotateX(20deg);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        transition: all 0.5s ease;
+    }
+
+    .layer-num {
+        font-family: 'Outfit';
+        font-size: 64px;
+        font-weight: 800;
+        color: rgba(0, 204, 255, 0.2);
+        position: absolute;
+        right: 40px;
+        bottom: 10px;
+    }
+
+    .layer-content {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .layer-title {
+        font-family: 'Outfit';
+        font-size: 36px;
+        font-weight: 800;
+        color: var(--white);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+    }
+
+    .layer-tags {
+        display: flex;
+        gap: 15px;
+    }
+
+    .layer-tag {
+        font-size: 16px;
+        color: var(--accent);
+        background: rgba(0, 204, 255, 0.1);
+        padding: 4px 15px;
+        border-radius: 10px;
+        border: 1px solid rgba(0, 204, 255, 0.2);
+    }
+
+    .arch-layer:nth-child(1) { --w: 1000px; z-index: 3; background: linear-gradient(135deg, rgba(0, 204, 255, 0.2) 0%, rgba(15, 23, 42, 0.8) 100%); }
+    .arch-layer:nth-child(2) { --w: 1200px; z-index: 2; margin-top: -50px; }
+    .arch-layer:nth-child(3) { --w: 1400px; z-index: 1; margin-top: -50px; }
+
+</style>
+
+<div class="v14-arch-container">
+    <div class="arch-layer">
+        <div class="layer-num">03</div>
+        <div class="layer-content">
+            <p id="val3" class="layer-title">AEO AUTHORITY</p>
+            <div class="layer-tags">
+                <span class="layer-tag">AI Answer Engine</span>
+                <span class="layer-tag">Direct Response</span>
+            </div>
+        </div>
+    </div>
+    <div class="arch-layer">
+        <div class="layer-num">02</div>
+        <div class="layer-content">
+            <p id="val2" class="layer-title">GEO VISIBILITY</p>
+            <div class="layer-tags">
+                <span class="layer-tag">Entity Mapping</span>
+                <span class="layer-tag">Trust Signals</span>
+            </div>
+        </div>
+    </div>
+    <div class="arch-layer">
+        <div class="layer-num">01</div>
+        <div class="layer-content">
+            <p id="val1" class="layer-title">SEO FOUNDATION</p>
+            <div class="layer-tags">
+                <span class="layer-tag">Core Technical</span>
+                <span class="layer-tag">Search Intent</span>
+            </div>
+        </div>
+    </div>
+</div>

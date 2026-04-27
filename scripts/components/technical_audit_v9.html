@@ -1,0 +1,60 @@
+<div class="tech-audit-v9">
+    <div class="circular-scorecard">
+        <svg viewBox="0 0 100 100" class="score-ring">
+            <circle cx="50" cy="50" r="45" class="bg"></circle>
+            <circle cx="50" cy="50" r="45" class="progress" style="stroke-dasharray: 283; stroke-dashoffset: 40;"></circle>
+        </svg>
+        <div class="score-content">
+            <div class="score-value" id="val1">92</div>
+            <div class="score-label" id="lbl1">OVERALL HEALTH</div>
+        </div>
+    </div>
+    
+    <div class="tech-metrics">
+        <div class="metric-row glass">
+            <span class="m-label" id="lbl2">Core Web Vitals</span>
+            <span class="m-val" id="val2">PASS</span>
+        </div>
+        <div class="metric-row glass">
+            <span class="m-label" id="lbl3">Security Headers</span>
+            <span class="m-val" id="val3">A+</span>
+        </div>
+        <div class="metric-row glass">
+            <span class="m-label" id="lbl4">Mobile Fidelity</span>
+            <span class="m-val" id="val4">OPTIMAL</span>
+        </div>
+    </div>
+</div>
+
+<style>
+.tech-audit-v9 {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    gap: 100px; padding: 100px;
+}
+.circular-scorecard {
+    position: relative; width: 500px; height: 500px;
+}
+.score-ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+.score-ring circle { fill: none; stroke-width: 8; stroke-linecap: round; }
+.score-ring .bg { stroke: rgba(255, 255, 255, 0.05); }
+.score-ring .progress { 
+    stroke: var(--accent); 
+    filter: drop-shadow(0 0 20px var(--accent));
+}
+.score-content {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+.score-value { font-size: 140px; font-weight: 900; color: var(--white); }
+.score-label { font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: 4px; }
+
+.tech-metrics { display: flex; flex-direction: column; gap: 20px; width: 500px; }
+.metric-row {
+    padding: 30px 40px; border-radius: 20px;
+    display: flex; justify-content: space-between; align-items: center;
+}
+.m-label { font-size: 24px; color: rgba(255, 255, 255, 0.75); }
+.m-val { font-size: 28px; font-weight: 800; color: var(--accent); }
+</style>

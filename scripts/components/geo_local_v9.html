@@ -1,0 +1,147 @@
+<div class="geo-visual">
+    <div class="geo-grid-bg"></div>
+    <div class="geo-radar-rings">
+        <div class="ring"></div>
+        <div class="ring"></div>
+        <div class="ring"></div>
+    </div>
+    <div class="geo-scanner"></div>
+    <div class="location-pulse" style="top:45%; left:50%;"></div>
+    
+    <div class="geo-data-overlay">
+        <div class="geo-metric">
+            <div class="metric-value">9.8</div>
+            <div class="metric-label">LOCAL RELEVANCE</div>
+        </div>
+        <div class="geo-metric">
+            <div class="metric-value">15km</div>
+            <div class="metric-label">PROXIMITY RADIUS</div>
+        </div>
+    </div>
+
+    <div id="centerLabel" class="geo-center-label">SUN CITY AIR</div>
+</div>
+
+<style>
+.geo-visual {
+    width: 85vw;
+    height: 80vh;
+    background: radial-gradient(circle, rgba(0, 204, 255, 0.08) 0%, transparent 80%);
+    border-radius: 50%;
+    position: relative;
+    border: 2px solid rgba(0, 204, 255, 0.1);
+    box-shadow: 0 0 150px rgba(0, 204, 255, 0.1);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.geo-grid-bg {
+    position: absolute;
+    inset: 0;
+    background-image: 
+        linear-gradient(rgba(0, 204, 255, 0.1) 1px, transparent 1px),
+        linear-gradient(90(rgba(0, 204, 255, 0.1) 1px, transparent 1px));
+    background-size: 60px 60px;
+    opacity: 0.4;
+}
+
+.geo-radar-rings {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ring {
+    position: absolute;
+    border: 1px solid rgba(0, 204, 255, 0.2);
+    border-radius: 50%;
+}
+
+.ring:nth-child(1) { width: 30%; height: 30%; }
+.ring:nth-child(2) { width: 60%; height: 60%; }
+.ring:nth-child(3) { width: 90%; height: 90%; }
+
+.geo-scanner {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 45%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent));
+    transform-origin: left center;
+    animation: geoScan 4s linear infinite;
+    z-index: 5;
+}
+
+@keyframes geoScan {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.location-pulse {
+    position: absolute;
+    width: 40px; height: 40px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 60px var(--accent), 0 0 120px rgba(0, 204, 255, 0.5);
+    z-index: 10;
+    animation: geoPulse 2s infinite;
+}
+
+@keyframes geoPulse {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(3); opacity: 0; }
+}
+
+.geo-data-overlay {
+    position: absolute;
+    top: 10%;
+    right: 15%;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    z-index: 20;
+}
+
+.geo-metric {
+    text-align: right;
+    background: rgba(13, 25, 41, 0.5);
+    padding: 15px 25px;
+    border-radius: 12px;
+    border-right: 4px solid var(--accent);
+    backdrop-filter: blur(10px);
+}
+
+.metric-value {
+    font-size: 42px;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+}
+
+.metric-label {
+    font-size: 14px;
+    color: #FFF;
+    opacity: 0.7;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-top: 5px;
+}
+
+.geo-center-label {
+    position: absolute;
+    bottom: 15%;
+    width: 100%;
+    text-align: center;
+    font-size: 48px;
+    font-weight: 900;
+    color: #FFF;
+    letter-spacing: 12px;
+    text-transform: uppercase;
+    text-shadow: 0 0 30px rgba(0, 204, 255, 0.5);
+    z-index: 20;
+}
+</style>

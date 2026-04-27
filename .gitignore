@@ -1,0 +1,30 @@
+# API Keys & Secrets
+.env
+secret*
+*.pem
+
+# Python Virtual Environments
+venv/
+env/
+.venv/
+
+# Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Data Outputs & Artifacts
+output/
+downloads/
+*.pdf
+*.docx
+*.xlsx
+*.pptx
+*.log
+node_modules/
+
+# IDE config
+.vscode/
+.idea/
+.DS_Store

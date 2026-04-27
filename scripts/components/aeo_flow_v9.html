@@ -1,0 +1,170 @@
+<div class="aeo-visual">
+    <div class="aeo-grid"></div>
+    <div class="aeo-container">
+        <!-- Node 1 -->
+        <div class="aeo-card">
+            <div class="aeo-icon-box">
+                <svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            </div>
+            <div class="aeo-content">
+                <div class="aeo-label" id="val1">ENTITY SIGNALS</div>
+                <div class="aeo-status-bar"><div class="aeo-fill" id="bar1" style="width: 92%"></div></div>
+            </div>
+        </div>
+
+        <div class="aeo-connector">
+            <div class="aeo-pulse"></div>
+        </div>
+
+        <!-- Node 2 -->
+        <div class="aeo-card active">
+            <div class="aeo-icon-box">
+                <svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg>
+            </div>
+            <div class="aeo-content">
+                <div class="aeo-label" id="val2">STRUCTURED DATA</div>
+                <div class="aeo-status-bar"><div class="aeo-fill" id="bar2" style="width: 88%"></div></div>
+            </div>
+        </div>
+
+        <div class="aeo-connector">
+            <div class="aeo-pulse delay"></div>
+        </div>
+
+        <!-- Node 3 -->
+        <div class="aeo-card">
+            <div class="aeo-icon-box">
+                <svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4 4 4-4 4-4-4Z"></path><path d="M3.34 7a10 10 0 1 1 17.32 0"></path></svg>
+            </div>
+            <div class="aeo-content">
+                <div class="aeo-label" id="val3">AUTHORITY PULSE</div>
+                <div class="aeo-status-bar"><div class="aeo-fill" id="bar3" style="width: 95%"></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.aeo-visual {
+    width: 92vw;
+    height: 60vh;
+    background: radial-gradient(circle at center, rgba(0, 204, 255, 0.05) 0%, transparent 70%);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+}
+
+.aeo-grid {
+    position: absolute;
+    inset: 0;
+    background-image: 
+        linear-gradient(rgba(0, 204, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(90(rgba(0, 204, 255, 0.05) 1px, transparent 1px));
+    background-size: 50px 50px;
+    mask-image: radial-gradient(circle at center, black, transparent);
+    opacity: 0.3;
+}
+
+.aeo-container {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    z-index: 10;
+}
+
+.aeo-card {
+    width: 380px;
+    padding: 40px;
+    background: rgba(13, 25, 41, 0.7);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(0, 204, 255, 0.2);
+    border-radius: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: all 0.4s ease;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+}
+
+.aeo-card.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 40px rgba(0, 204, 255, 0.15);
+}
+
+.aeo-icon-box {
+    width: 100px;
+    height: 100px;
+    background: rgba(0, 204, 255, 0.1);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 25px;
+    color: var(--accent);
+}
+
+.aeo-icon-box svg {
+    width: 50px;
+    height: 50px;
+}
+
+.aeo-content {
+    width: 100%;
+}
+
+.aeo-label {
+    font-size: 28px;
+    font-weight: 800;
+    color: #FFF;
+    margin-bottom: 20px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.aeo-status-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.aeo-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #00F2FE);
+    box-shadow: 0 0 10px var(--accent);
+}
+
+.aeo-connector {
+    width: 120px;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(0, 204, 255, 0.2), var(--accent), rgba(0, 204, 255, 0.2));
+    position: relative;
+}
+
+.aeo-pulse {
+    position: absolute;
+    top: -5px;
+    left: 0;
+    width: 12px;
+    height: 12px;
+    background: #FFF;
+    border-radius: 50%;
+    box-shadow: 0 0 20px #FFF;
+    animation: aeoFlow 2s infinite ease-in-out;
+}
+
+.aeo-pulse.delay {
+    animation-delay: 1s;
+}
+
+@keyframes aeoFlow {
+    0% { left: 0; opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { left: 100%; opacity: 0; }
+}
+</style>

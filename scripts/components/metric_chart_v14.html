@@ -1,0 +1,102 @@
+<style>
+    .v14-chart-container {
+        width: 1500px; /* Increased from 1100px */
+        height: 650px; /* Increased from 600px */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 60px; /* Increased from 40px */
+    }
+
+    .chart-row {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .row-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+    }
+
+    .row-label {
+        font-family: 'Outfit';
+        font-size: 36px; /* Increased from 28px */
+        font-weight: 800;
+        color: #FFF;
+        text-transform: uppercase;
+        letter-spacing: 3px;
+    }
+
+    .row-value {
+        font-family: 'Outfit';
+        font-size: 48px; /* Increased from 36px */
+        font-weight: 800;
+        color: var(--accent);
+    }
+
+    .bar-track {
+        width: 100%;
+        height: 20px; /* Increased from 12px */
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .bar-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, var(--accent) 0%, #0088FF 100%);
+        box-shadow: 0 0 20px rgba(0, 204, 255, 0.5);
+        border-radius: 6px;
+        transition: width 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .benchmark-marker {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: var(--gold);
+        opacity: 0.5;
+        z-index: 5;
+    }
+
+</style>
+
+<div class="v14-chart-container">
+    <div class="chart-row">
+        <div class="row-meta">
+            <span id="lbl1" class="row-label">AEO VISIBILITY Score</span>
+            <span id="val1" class="row-value">42%</span>
+        </div>
+        <div class="bar-track">
+            <div id="bar1" class="bar-fill" style="width: 42%;"></div>
+            <div class="benchmark-marker" style="left: 75%;"></div>
+        </div>
+    </div>
+
+    <div class="chart-row">
+        <div class="row-meta">
+            <span id="lbl2" class="row-label">GEO CITATION TRUST</span>
+            <span id="val2" class="row-value">28%</span>
+        </div>
+        <div class="bar-track">
+            <div id="bar2" class="bar-fill" style="width: 28%;"></div>
+            <div class="benchmark-marker" style="left: 80%;"></div>
+        </div>
+    </div>
+
+    <div class="chart-row">
+        <div class="row-meta">
+            <span id="lbl3" class="row-label">CORE ENTITY CLARITY</span>
+            <span id="val3" class="row-value">56%</span>
+        </div>
+        <div class="bar-track">
+            <div id="bar3" class="bar-fill" style="width: 56%;"></div>
+            <div class="benchmark-marker" style="left: 90%;"></div>
+        </div>
+    </div>
+</div>

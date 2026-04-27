@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Presentation Slide Template</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #080C14;
+            --navy: #0F172A;
+            --accent: #00CCFF;
+            --accent-glow: rgba(0, 204, 255, 0.4);
+            --gold: #FACC15;
+            --white: #F8FAFC;
+            --glass: rgba(15, 23, 42, 0.8);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --grid: rgba(0, 204, 255, 0.03);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+
+        body {
+            background: var(--bg);
+            color: var(--white);
+            font-family: 'Inter', sans-serif;
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            position: relative;
+            /* Coordinate Grid Background */
+            background-image: 
+                radial-gradient(circle at 2px 2px, var(--grid) 1px, transparent 0);
+            background-size: 40px 40px;
+        }
+
+        /* V15 Managed Flex Stack */
+        .v15-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+        }
+
+        /* Global Header */
+        .v15-header {
+            height: 160px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 80px;
+            border-bottom: 1px solid var(--glass-border);
+            z-index: 100;
+            flex-shrink: 0;
+        }
+
+        .v15-title-group { display: flex; flex-direction: column; }
+        .v15-subtitle { font-family: 'Outfit'; font-size: 24px; color: var(--accent); letter-spacing: 4px; text-transform: uppercase; font-weight: 600; }
+        .v15-title { font-family: 'Outfit'; font-size: 72px; font-weight: 800; letter-spacing: -2px; text-transform: uppercase; line-height: 1.1; }
+
+        /* Main Content Area (Visual + Insights) */
+        .v15-content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 10px 78px 110px 78px;
+            gap: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Perfectly Centered Visual Target */
+        #v15-visual-target { 
+            flex: 1 1 auto;
+            width: 100%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 10;
+            min-height: 290px;
+            max-height: 420px;
+            overflow: hidden;
+        }
+        .v15-visual-inner {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform-origin: top center;
+        }
+
+        /* The 8-Bullet Insight Matrix */
+        .v15-insight-matrix {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            z-index: 20;
+            flex-shrink: 0;
+            margin-bottom: 14px;
+            max-height: 360px;
+            overflow: hidden;
+        }
+        .v15-insight-matrix.cols-3 {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-rows: repeat(1, minmax(0, 1fr));
+        }
+        .v15-insight-matrix.cols-4 {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-rows: repeat(2, minmax(0, 1fr));
+        }
+
+        .v15-insight-card {
+            background: rgba(15, 23, 42, 0.6); /* Slightly more opaque */
+            border: 1px solid rgba(0, 204, 255, 0.2);
+            padding: 14px 16px;
+            border-radius: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            backdrop-filter: blur(15px);
+            min-height: 0;
+            transition: transform 0.3s ease;
+        }
+
+        .v15-card-dot { 
+            width: 10px; 
+            height: 10px; 
+            background: var(--accent); 
+            border-radius: 50%; 
+            margin-top: 6px; 
+            flex-shrink: 0; 
+            box-shadow: 0 0 12px var(--accent); 
+        }
+        
+        .v15-card-text { 
+            font-size: 15px;
+            color: rgba(255, 255, 255, 0.95); 
+            line-height: 1.38;
+            font-weight: 550; 
+        }
+
+        /* Takeaway Bar */
+        .v15-takeaway {
+            position: absolute;
+            bottom: 35px;
+            left: 80px;
+            right: 80px;
+            padding: 20px 40px;
+            background: linear-gradient(90deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.98));
+            border: 2px solid var(--accent);
+            border-radius: 16px;
+            backdrop-filter: blur(20px);
+            z-index: 150;
+            display: none; /* Hidden by default */
+            align-items: center;
+            gap: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.9), 0 0 20px var(--accent-glow);
+        }
+        .v15-takeaway.has-content {
+            display: flex;
+        }
+        .v15-takeaway-label { 
+            font-size: 12px; 
+            color: var(--accent); 
+            font-weight: 900; 
+            text-transform: uppercase; 
+            white-space: nowrap; 
+            padding-right: 20px; 
+            border-right: 2px solid var(--glass-border); 
+            letter-spacing: 2px;
+        }
+        .v15-takeaway-text { 
+            font-size: 22px; 
+            font-weight: 700; 
+            color: #FFF; 
+            line-height: 1.3; 
+            font-style: italic; 
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        /* Footer */
+        .v15-footer {
+            border-top: 1px solid var(--glass-border);
+            flex-shrink: 0;
+        }
+
+        /* Brand Identity */
+        .v15-logo-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 5px;
+        }
+        #logo-img {
+            height: 50px;
+            width: auto;
+            display: none; /* Shown via JS if exists */
+            filter: brightness(0) invert(1) drop-shadow(0 0 10px rgba(255,255,255,0.3));
+        }
+        .v15-brand-backup {
+            color: #FFF;
+            font-weight: 800;
+            font-size: 24px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+    <div class="v14-glow" style="top: -200px; left: -200px;"></div>
+    
+    <div class="corner-marker cm-tl"></div>
+    <div class="corner-marker cm-tr"></div>
+    <div class="corner-marker cm-bl"></div>
+    <div class="corner-marker cm-br"></div>
+
+    <div class="section-badge" id="v14-section-badge">STRAT-CORE</div>
+
+    <div class="v15-container">
+        <header class="v15-header">
+            <div class="v15-title-group">
+                <p id="v14-subtitle" class="v15-subtitle">STRATEGIC GROWTH ANALYSIS</p>
+                <h1 id="v14-title" class="v15-title">Executive Summary</h1>
+            </div>
+            <div class="v15-logo-container">
+                <img id="logo-img" src="" alt="Traffic Radius Logo">
+                <div id="brand-text-fallback" class="v15-brand-backup">TRAFFIC RADIUS</div>
+                <p style="font-size: 14px; color: rgba(255,255,255,0.4); letter-spacing: 1px;">STRATEGY ENGINE v15.6</p>
+            </div>
+        </header>
+
+        <main class="v15-content-area">
+            <div id="v15-visual-target">
+                <!-- SVG Frameworks -->
+            </div>
+
+            <div id="v15-bullets" class="v15-insight-matrix">
+                <!-- 8 Bullets -->
+            </div>
+
+            <div class="v15-takeaway">
+                <p class="v15-takeaway-label">Master Takeaway</p>
+                <p id="v14-takeaway" class="v15-takeaway-text"></p>
+            </div>
+        </main>
+
+        <footer class="v15-footer">
+            <div style="display: flex; gap: 40px;">
+                <p>CONFIDENTIAL BUSINESS STRATEGY</p>
+                <p style="color: var(--gold); border-left: 1px solid var(--glass-border); padding-left: 40px;">© 2026 RADIUS AI</p>
+            </div>
+            <p id="v14-slide-num">SLIDE 01 OF 15</p>
+        </footer>
+    </div>
+
+    <script>
+        function fitSlideContent() {
+            const contentArea = document.querySelector('.v15-content-area');
+            const bulletMatrix = document.getElementById('v15-bullets');
+            if (!contentArea || !bulletMatrix) return;
+
+            let fontSize = 15;
+            let cardPaddingY = 14;
+            let cardPaddingX = 16;
+
+            const applySizing = () => {
+                bulletMatrix.querySelectorAll('.v15-card-text').forEach(el => {
+                    el.style.fontSize = `${fontSize}px`;
+                    el.style.lineHeight = '1.35';
+                });
+                bulletMatrix.querySelectorAll('.v15-insight-card').forEach(el => {
+                    el.style.padding = `${cardPaddingY}px ${cardPaddingX}px`;
+                });
+            };
+
+            applySizing();
+            let guard = 0;
+            while (contentArea.scrollHeight > contentArea.clientHeight && guard < 8) {
+                fontSize = Math.max(13, fontSize - 0.5);
+                cardPaddingY = Math.max(10, cardPaddingY - 1);
+                cardPaddingX = Math.max(12, cardPaddingX - 1);
+                applySizing();
+                guard += 1;
+            }
+        }
+
+        function fitVisualContent() {
+            const visualTarget = document.getElementById('v15-visual-target');
+            if (!visualTarget) return;
+            const visualInner = visualTarget.querySelector('.v15-visual-inner');
+            if (!visualInner || !visualInner.firstElementChild) return;
+
+            const contentEl = visualInner.firstElementChild;
+            visualInner.style.transform = 'scale(1)';
+            const availableW = visualTarget.clientWidth;
+            const availableH = visualTarget.clientHeight;
+            const rawW = contentEl.scrollWidth || contentEl.offsetWidth || availableW;
+            const rawH = contentEl.scrollHeight || contentEl.offsetHeight || availableH;
+            if (!rawW || !rawH) return;
+            const scale = Math.min(1, availableW / rawW, availableH / rawH);
+            visualInner.style.transform = `scale(${scale})`;
+        }
+
+        function setBulletLayout(container, count) {
+            if (!container) return;
+            container.classList.remove('cols-3', 'cols-4');
+            if (count <= 3) {
+                container.classList.add('cols-3');
+            } else {
+                container.classList.add('cols-4');
+            }
+        }
+
+        window.loadComponent = function(htmlContent, slideData) {
+            if (!slideData) return;
+
+            // 0. Visual Content Injection (MUST HAPPEN FIRST for internal mapping)
+            document.getElementById('v15-visual-target').innerHTML = `<div class="v15-visual-inner">${htmlContent}</div>`;
+
+            // 1. Text Mapping (Global Header)
+            if (slideData.title) document.getElementById('v14-title').innerHTML = slideData.title;
+            if (slideData.subtitle) document.getElementById('v14-subtitle').innerHTML = slideData.subtitle;
+            
+            // 1b. Internal Mapping (Component Title/Subtitle)
+            const visualTarget = document.getElementById('v15-visual-target');
+            if (visualTarget) {
+                const internalTitle = visualTarget.querySelector('#title');
+                const internalSubtitle = visualTarget.querySelector('#subtitle');
+                if (internalTitle && slideData.title) internalTitle.innerHTML = slideData.title;
+                if (internalSubtitle && slideData.subtitle) internalSubtitle.innerHTML = slideData.subtitle;
+            }
+
+            // 2. Takeaway Mapping
+            const takeawayEl = document.getElementById('v14-takeaway');
+            const takeawayBar = document.querySelector('.v15-takeaway');
+            if (takeawayEl && takeawayBar) {
+                if (slideData.takeaway && slideData.takeaway.trim().length > 0) {
+                    takeawayEl.innerHTML = slideData.takeaway;
+                    takeawayBar.classList.add('has-content');
+                } else {
+                    takeawayBar.classList.remove('has-content');
+                }
+            }
+
+            // 3. Bullets Mapping (The v15 Insight Matrix - 8 bullets)
+            const bulletContainer = document.getElementById('v15-bullets');
+            if (bulletContainer && slideData.bullets) {
+                const bullets = slideData.bullets.slice(0, 8);
+                setBulletLayout(bulletContainer, bullets.length);
+                bulletContainer.innerHTML = bullets
+                    .slice(0, 8)
+                    .map(b => `
+                        <div class="v15-insight-card">
+                            <div class="v15-card-dot"></div>
+                            <div class="v15-card-text">${String(b || '').trim()}</div>
+                        </div>
+                    `).join('');
+            }
+
+            // 5. Visual Data Mapping (Enhanced for v15.1)
+            const vd = slideData.visual_data;
+            if (vd && Array.isArray(vd)) {
+                vd.forEach((item, i) => {
+                    const idx = i + 1;
+                    const valEl = document.getElementById(`val${idx}`);
+                    const lblEl = document.getElementById(`lbl${idx}`);
+                    const barEl = document.getElementById(`bar${idx}`);
+
+                    if (typeof item === 'string' && item.includes(':')) {
+                        const [label, value] = item.split(':').map(s => s.trim());
+                        if (lblEl) lblEl.innerHTML = label;
+                        if (valEl) valEl.innerHTML = value;
+                        if (barEl) barEl.style.width = (parseInt(value) || 0) + '%';
+                    } else {
+                        if (valEl) valEl.innerHTML = item;
+                        if (barEl) barEl.style.width = (typeof item === 'number' ? item : parseInt(item) || 0) + '%';
+                    }
+                });
+            }
+            // 2. Logo / Brand Injection
+            const logoImg = document.getElementById('logo-img');
+            const fallbackText = document.getElementById('brand-text-fallback');
+            
+            // Note: logoB64 is passed from render_slides.js via evaluate
+            if (window.logoDataUri) {
+                if (logoImg) {
+                    logoImg.src = window.logoDataUri;
+                    logoImg.style.display = 'block';
+                }
+                if (fallbackText) fallbackText.style.display = 'none';
+            }
+
+            // 6. Final fit pass to avoid cut-off in dense slides.
+            fitVisualContent();
+            fitSlideContent();
+        };
+    </script>
+</body>
+</html>

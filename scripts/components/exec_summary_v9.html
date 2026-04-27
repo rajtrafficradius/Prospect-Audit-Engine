@@ -1,0 +1,45 @@
+<div class="metric-grid">
+    <div class="metric-card glass">
+        <div class="metric-value" id="val1">0</div>
+        <div class="metric-label" id="lbl1">Label</div>
+    </div>
+    <div class="metric-card glass">
+        <div class="metric-value" id="val2">0</div>
+        <div class="metric-label" id="lbl2">Label</div>
+    </div>
+    <div class="metric-card glass highlight">
+        <div class="metric-value" id="val3">0</div>
+        <div class="metric-label" id="lbl3">Label</div>
+    </div>
+</div>
+
+<style>
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 80px; /* Increased from 40px */
+    width: 1500px; /* Explicit width */
+}
+.metric-card {
+    padding: 60px 40px;
+    text-align: center;
+    border-radius: 40px;
+    transition: transform 0.3s ease;
+}
+.metric-card.highlight {
+    background: linear-gradient(135deg, rgba(0, 204, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 100%);
+    border: 2px solid var(--accent);
+}
+.metric-value {
+    font-size: 110px;
+    font-weight: 800;
+    color: var(--white);
+    margin-bottom: 20px;
+}
+.metric-label {
+    font-size: 32px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+</style>

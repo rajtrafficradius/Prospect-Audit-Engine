@@ -1,0 +1,112 @@
+<style>
+    .v14-comp-container {
+        width: 1000px;
+        height: 600px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 60px;
+        align-items: center;
+    }
+
+    .comp-card {
+        height: 100%;
+        background: rgba(15, 23, 42, 0.4);
+        border: 1px solid var(--glass-border);
+        border-radius: 30px;
+        padding: 40px;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        transition: all 0.5s ease;
+    }
+
+    .comp-card.active {
+        border-color: var(--accent);
+        background: rgba(0, 204, 255, 0.05);
+        box-shadow: 0 0 50px rgba(0, 204, 255, 0.15);
+    }
+
+    .comp-label {
+        font-family: 'Outfit';
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.4);
+    }
+
+    .comp-card.active .comp-label { color: var(--accent); }
+
+    .comp-title {
+        font-family: 'Outfit';
+        font-size: 42px;
+        font-weight: 800;
+        color: #FFF;
+        line-height: 1.1;
+    }
+
+    .comp-metrics {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        margin-top: 20px;
+    }
+
+    .comp-metric {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .m-label { font-size: 16px; color: rgba(255, 255, 255, 0.6); }
+    .m-value { font-family: 'Outfit'; font-size: 24px; font-weight: 800; color: var(--accent); }
+
+    .vs-circ {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 80px;
+        height: 80px;
+        background: var(--bg);
+        border: 2px solid var(--glass-border);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Outfit';
+        font-weight: 800;
+        font-size: 24px;
+        color: var(--accent);
+        z-index: 10;
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+    }
+
+</style>
+
+<div class="v14-comp-container">
+    <div class="vs-circ">VS</div>
+    
+    <div class="comp-card">
+        <p class="comp-label">CURRENT STATE</p>
+        <h2 id="val1" class="comp-title">Reactive Visibility</h2>
+        <div class="comp-metrics">
+            <div class="comp-metric"><span class="m-label">AEO Presence</span><span class="m-value">Weak</span></div>
+            <div class="comp-metric"><span class="m-label">Entity Clarity</span><span class="m-value">Low</span></div>
+            <div class="comp-metric"><span class="m-label">Authority Score</span><span class="m-value">32/100</span></div>
+        </div>
+    </div>
+
+    <div class="comp-card active">
+        <p class="comp-label">TARGET INFRASTRUCTURE</p>
+        <h2 id="val2" class="comp-title">AI Authority Core</h2>
+        <div class="comp-metrics">
+            <div class="comp-metric"><span class="m-label">AEO Presence</span><span class="m-value">Dominant</span></div>
+            <div class="comp-metric"><span class="m-label">Entity Clarity</span><span class="m-value">High</span></div>
+            <div class="comp-metric"><span class="m-label">Authority Score</span><span class="m-value">85/100</span></div>
+        </div>
+    </div>
+</div>
