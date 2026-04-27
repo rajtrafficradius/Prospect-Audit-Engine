@@ -65,10 +65,12 @@ PALETTE = [BLUE, GREEN, CYAN, '#E67E22', '#9B59B6', '#1ABC9C', '#E74C3C', '#3449
 PLOTLY_TEMPLATE = "plotly_white"
 CHART_EXPORT_DPI = 450
 PLOTLY_EXPORT_SCALE = 3
+FONT_STACK = ['DejaVu Sans', 'Liberation Sans', 'Noto Sans', 'Arial', 'sans-serif']
+PLOTLY_FONT_FAMILY = "DejaVu Sans, Liberation Sans, Noto Sans, Arial, sans-serif"
 
 plt.rcParams.update({
     'font.family': 'sans-serif',
-    'font.sans-serif': ['Calibri', 'Arial', 'DejaVu Sans'],
+    'font.sans-serif': FONT_STACK,
     'font.size': 12,
     'axes.titlesize': 16,
     'axes.titleweight': 'bold',
@@ -115,7 +117,7 @@ def _save_plotly(fig, filename, width=1400, height=800, scale=2):
             template=PLOTLY_TEMPLATE,
             paper_bgcolor=BG_WHITE,
             plot_bgcolor=BG_LIGHT,
-            font=dict(family="Calibri, Arial", color=DARK_GREY),
+            font=dict(family=PLOTLY_FONT_FAMILY, color=DARK_GREY),
         )
         fig.write_image(path, width=width, height=height, scale=max(scale, PLOTLY_EXPORT_SCALE))
         print(f"Chart saved: {filename}")

@@ -11,8 +11,13 @@ RUN apt-get update && apt-get install -y \
     curl \
     wget \
     gnupg \
+    fontconfig \
+    fonts-dejavu-core \
+    fonts-liberation \
+    fonts-noto-core \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
+    && fc-cache -f -v \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

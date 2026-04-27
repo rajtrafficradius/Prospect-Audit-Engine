@@ -111,6 +111,30 @@ DOCX_CHART_DPI = 450
 TRAFFICRADIUS_EMAIL = "Info@trafficradius.com.au"
 TRAFFICRADIUS_PHONE = "+61 1300 852 340"
 TRAFFICRADIUS_WEB = "trafficradius.com.au"
+FONT_CANDIDATES_REGULAR = [
+    "DejaVuSans.ttf",
+    "LiberationSans-Regular.ttf",
+    "NotoSans-Regular.ttf",
+    "arial.ttf",
+    "calibri.ttf",
+    "segoeui.ttf",
+]
+FONT_CANDIDATES_BOLD = [
+    "DejaVuSans-Bold.ttf",
+    "LiberationSans-Bold.ttf",
+    "NotoSans-Bold.ttf",
+    "arialbd.ttf",
+    "calibrib.ttf",
+    "segoeuib.ttf",
+]
+FONT_SEARCH_DIRS = [
+    os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "Fonts"),
+    "/usr/share/fonts/truetype/dejavu",
+    "/usr/share/fonts/truetype/liberation",
+    "/usr/share/fonts/truetype/liberation2",
+    "/usr/share/fonts/truetype/noto",
+    "/usr/share/fonts",
+]
 
 # ══════════════════════════════════════════════════════════════
 # HELPER FUNCTIONS
@@ -531,16 +555,22 @@ def add_brand_dashboard_panel(doc, title, cards):
     doc.add_paragraph("")
 
 def _load_dashboard_font(size, bold=False):
-    candidates = [
-        "arialbd.ttf" if bold else "arial.ttf",
-        "calibrib.ttf" if bold else "calibri.ttf",
-        "segoeuib.ttf" if bold else "segoeui.ttf",
-    ]
+    candidates = FONT_CANDIDATES_BOLD if bold else FONT_CANDIDATES_REGULAR
     for candidate in candidates:
         try:
             return ImageFont.truetype(candidate, size)
         except Exception:
-            continue
+            pass
+        for font_dir in FONT_SEARCH_DIRS:
+            if not font_dir or not os.path.isdir(font_dir):
+                continue
+            candidate_path = os.path.join(font_dir, candidate)
+            if not os.path.exists(candidate_path):
+                continue
+            try:
+                return ImageFont.truetype(candidate_path, size)
+            except Exception:
+                continue
     return ImageFont.load_default()
 
 def _draw_target_icon(draw, box, color):
