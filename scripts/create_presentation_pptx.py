@@ -863,9 +863,8 @@ def _resolve_cover_background_path(project_root):
     env_bg = os.environ.get("PPT_COVER_BG_PATH", "").strip()
     if env_bg:
         candidates.append(env_bg)
-    candidates.append(r"C:/Users/Trisha BM/Downloads/f09a4875-948a-4ef0-aab4-22175794064a.png")
-    candidates.append(r"C:/Users/Trisha BM/Downloads/3dccd8f6-265d-4972-a07a-45c54fe77506.png")
-    candidates.append(r"C:/Users/Trisha BM/Downloads/front_slide.png")
+    candidates.append(os.path.join(project_root, "src", "static", "ppt_assets", "cover_bg.png"))
+    candidates.append(os.path.join(project_root, "src", "static", "ppt_assets", "bg_premium.png"))
     candidates.append(os.path.join(project_root, "front_slide.png"))
     candidates.append(os.path.join(project_root, "templates", "front_slide.png"))
     for c in candidates:
@@ -879,8 +878,8 @@ def _resolve_content_background_path(project_root):
     env_bg = os.environ.get("PPT_CONTENT_BG_PATH", "").strip()
     if env_bg:
         candidates.append(env_bg)
-    candidates.append(r"C:/Users/Trisha BM/Downloads/b25cb608-d8b6-48be-8b0e-7eaa150192a4.png")
-    candidates.append(r"C:/Users/Trisha BM/Downloads/6865f757-655d-4c9f-a5bc-7ce886a03285.png")
+    candidates.append(os.path.join(project_root, "src", "static", "ppt_assets", "content_bg.png"))
+    candidates.append(os.path.join(project_root, "src", "static", "ppt_assets", "bg_premium.png"))
     candidates.append(os.path.join(project_root, "templates", "content_slide_bg.png"))
     for c in candidates:
         if c and os.path.exists(c):
