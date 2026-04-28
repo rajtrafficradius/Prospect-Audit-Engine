@@ -2358,6 +2358,10 @@ body[data-theme="light"] .engine-value {
     opacity: 1;
 }
 
+.node-item.failed {
+    opacity: 1;
+}
+
 .node-icon {
     width: 36px;
     height: 36px;
@@ -2379,6 +2383,16 @@ body[data-theme="light"] .engine-value {
 .node-item.done .node-icon {
     background: rgba(29, 159, 110, 0.14);
     color: var(--success);
+}
+
+.node-item.failed .node-icon {
+    background: rgba(239, 68, 68, 0.14);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.35);
+}
+
+.node-item.failed .node-status {
+    color: #ef4444;
 }
 
 .canvas-header {

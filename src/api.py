@@ -144,7 +144,6 @@ async def get_status(job_id: str):
             "docx": ("deliverables", "Strategy_Document.docx"),
             "xlsx": ("deliverables", "12_Month_Action_Plan.xlsx"),
             "pptx": ("deliverables", "Master_Presentation.pptx"),
-            "scorecard": ("charts", "integrated_scorecard.png"),
         }
         deliverables = {}
         availability = {}
@@ -195,7 +194,6 @@ async def download_file(job_id: str, file_type: str):
         "docx": "deliverables/Strategy_Document.docx",
         "xlsx": "deliverables/12_Month_Action_Plan.xlsx",
         "pptx": "deliverables/Master_Presentation.pptx",
-        "scorecard": "charts/integrated_scorecard.png"
     }
     
     if file_type not in file_map:

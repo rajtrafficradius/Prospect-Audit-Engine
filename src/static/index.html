@@ -345,35 +345,49 @@
                     <li class="node-item pending" id="node-extraction">
                         <div class="node-icon"><i data-feather="database"></i></div>
                         <div class="node-details">
-                            <span class="node-name">Extraction Engine</span>
+                            <span class="node-name">Content Extraction</span>
                             <span class="node-status">Awaiting...</span>
                         </div>
                     </li>
-                    <li class="node-item pending" id="node-vision">
-                        <div class="node-icon"><i data-feather="eye"></i></div>
-                        <div class="node-details">
-                            <span class="node-name">Multimodal CRO</span>
-                            <span class="node-status">Awaiting...</span>
-                        </div>
-                    </li>
-                    <li class="node-item pending" id="node-market">
+                    <li class="node-item pending" id="node-market-intel">
                         <div class="node-icon"><i data-feather="bar-chart-2"></i></div>
                         <div class="node-details">
                             <span class="node-name">Market Intelligence</span>
                             <span class="node-status">Awaiting...</span>
                         </div>
                     </li>
-                    <li class="node-item pending" id="node-rag">
-                        <div class="node-icon"><i data-feather="layers"></i></div>
+                    <li class="node-item pending" id="node-competitor-shadow">
+                        <div class="node-icon"><i data-feather="users"></i></div>
                         <div class="node-details">
-                            <span class="node-name">RAG Vector DB</span>
+                            <span class="node-name">Competitor Shadowing</span>
                             <span class="node-status">Awaiting...</span>
                         </div>
                     </li>
-                    <li class="node-item pending" id="node-synthesis">
+                    <li class="node-item pending" id="node-technical-audit">
+                        <div class="node-icon"><i data-feather="search"></i></div>
+                        <div class="node-details">
+                            <span class="node-name">Technical Audit</span>
+                            <span class="node-status">Awaiting...</span>
+                        </div>
+                    </li>
+                    <li class="node-item pending" id="node-deep-rag">
+                        <div class="node-icon"><i data-feather="layers"></i></div>
+                        <div class="node-details">
+                            <span class="node-name">RAG Vector Index</span>
+                            <span class="node-status">Awaiting...</span>
+                        </div>
+                    </li>
+                    <li class="node-item pending" id="node-strategy-synthesis">
                         <div class="node-icon"><i data-feather="edit-3"></i></div>
                         <div class="node-details">
                             <span class="node-name">Strategy Synthesis</span>
+                            <span class="node-status">Awaiting...</span>
+                        </div>
+                    </li>
+                    <li class="node-item pending" id="node-deliverables">
+                        <div class="node-icon"><i data-feather="package"></i></div>
+                        <div class="node-details">
+                            <span class="node-name">Deliverables Build</span>
                             <span class="node-status">Awaiting...</span>
                         </div>
                     </li>
@@ -424,18 +438,7 @@
                                 <i data-feather="monitor"></i>
                                 <span>Master_Presentation.pptx</span>
                             </a>
-                            <button id="livePreviewBtn" class="vault-item preview-btn hidden" type="button">
-                                <i data-feather="eye"></i>
-                                <span>Live Preview HTML</span>
-                            </button>
                         </div>
-                        <a href="/output/charts/integrated_scorecard.png" target="_blank" class="artifact-card image-card">
-                            <div class="ac-icon"><i data-feather="pie-chart"></i></div>
-                            <div class="ac-text">
-                                <h4>Scorecard</h4>
-                                <span>.png</span>
-                            </div>
-                        </a>
                     </div>
                 </div>
             </div>
@@ -500,17 +503,6 @@
         </div>
     </div>
 
-    <div id="previewModal" class="modal-overlay hidden">
-        <div class="glass-modal preview-modal">
-            <div class="modal-header">
-                <h2><i data-feather="monitor"></i> Strategy Preview</h2>
-                <button id="closePreviewBtn" class="close-btn" type="button"><i data-feather="x"></i></button>
-            </div>
-            <div class="modal-body" id="previewContent">
-                <div class="spinner"></div>
-            </div>
-        </div>
-    </div>
     </div>
 
     <script src="/static/app.js"></script>

@@ -299,11 +299,6 @@ def phase_6_deliverables(state: AuditState):
             for f in os.listdir(deliv_dir):
                 shutil.copy2(os.path.join(deliv_dir, f), archive_dir)
 
-        # Copy scorecard chart
-        scorecard_path = os.path.join(state["output_dir"], "charts", "integrated_scorecard.png")
-        if os.path.exists(scorecard_path):
-            shutil.copy2(scorecard_path, archive_dir)
-            
         # Save metadata for History Vault API
         metadata = {
             "domain": state["domain"],

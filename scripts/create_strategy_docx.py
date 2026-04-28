@@ -2636,8 +2636,6 @@ add_body(
     f"Overall, {PROSPECT_NAME} is operating in a market where a small set of high-value clusters drives the greatest upside. This makes phased prioritization essential, starting with the strongest commercial categories and then extending into answer-engine and AI-led visibility."
 )
 
-add_page_break(doc)
-
 # ══════════════════════════════════════════════════════════════
 # SECTION 4: CURRENT DIGITAL PERFORMANCE
 # ══════════════════════════════════════════════════════════════
@@ -2750,8 +2748,6 @@ if shadow_data or market_data.get("competitors"):
         run = p.add_run()
         run.add_picture(optimize_image_for_display(gap_dashboard_path, 6.5), width=Inches(6.5))
         doc.add_paragraph("")
-
-add_page_break(doc)
 
 # ══════════════════════════════════════════════════════════════
 # SECTION 6: INTEGRATED AUDIT — SEO, AEO & GEO

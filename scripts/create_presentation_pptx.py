@@ -1369,7 +1369,7 @@ def _add_bottom_bullets(slide, points, slide_index):
     display_pts = pts[:3]
     rows = 1
     cols = len(display_pts)
-    card_h = Cm(3.0)
+    card_h = Cm(3.8)
     row_gap = Cm(0.0)
     col_gap = Cm(0.48)
     col_w = (BULLET_W - Cm(0.18) - (col_gap * (cols - 1))) / cols

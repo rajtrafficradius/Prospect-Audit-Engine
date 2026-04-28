@@ -56,27 +56,28 @@
     const stdoutFileMeta = document.getElementById('stdoutFileMeta');
     const stdoutFileList = document.getElementById('stdoutFileList');
 
-    const agentNodes = {
-        extraction: document.getElementById('node-extraction'),
-        vision: document.getElementById('node-vision'),
-        market: document.getElementById('node-market'),
-        rag: document.getElementById('node-rag'),
-        synthesis: document.getElementById('node-synthesis')
-    };
-
     const historyModal = document.getElementById('historyModal');
     const openHistoryBtn = document.getElementById('openHistoryBtn');
     const closeHistoryBtn = document.getElementById('closeHistoryBtn');
     const historyList = document.getElementById('historyList');
 
-    const previewModal = document.getElementById('previewModal');
-    const closePreviewBtn = document.getElementById('closePreviewBtn');
-    const previewContent = document.getElementById('previewContent');
     const commandOrbit = document.querySelector('.side-orbit');
     const authCubeScene = document.querySelector('.auth-cube-scene');
 
+    const pipelineNodes = {
+        extraction: { element: document.getElementById('node-extraction'), label: 'Content Extraction' },
+        market_intel: { element: document.getElementById('node-market-intel'), label: 'Market Intelligence' },
+        competitor_shadow: { element: document.getElementById('node-competitor-shadow'), label: 'Competitor Shadowing' },
+        technical_audit: { element: document.getElementById('node-technical-audit'), label: 'Technical Audit' },
+        deep_rag: { element: document.getElementById('node-deep-rag'), label: 'RAG Vector Index' },
+        strategy_synthesis: { element: document.getElementById('node-strategy-synthesis'), label: 'Strategy Synthesis' },
+        deliverables: { element: document.getElementById('node-deliverables'), label: 'Deliverables Build' }
+    };
+    const pipelineNodeOrder = Object.keys(pipelineNodes);
+
     let eventSource = null;
     let currentJobId = null;
+    let activePipelineNode = null;
     const AUTH_SESSION_KEY = 'radius-auth-session';
 
     function renderIcons() {
@@ -472,7 +473,6 @@
                             <a href="/api/download/${item.archive_id}/docx" class="btn-dl docx" target="_blank"><i data-feather="file-text"></i> DOCX</a>
                             <a href="/api/download/${item.archive_id}/xlsx" class="btn-dl xlsx" target="_blank"><i data-feather="grid"></i> XLSX</a>
                             <a href="/api/download/${item.archive_id}/pptx" class="btn-dl pptx" target="_blank"><i data-feather="monitor"></i> PPTX</a>
-                            <button type="button" class="btn-dl preview-btn" onclick="openLivePreview('${item.archive_id}')"><i data-feather="eye"></i> Preview</button>
                         </div>
                     </div>
                 `;
@@ -486,51 +486,9 @@
     });
 
     closeHistoryBtn.addEventListener('click', () => historyModal.classList.add('hidden'));
-    closePreviewBtn.addEventListener('click', () => previewModal.classList.add('hidden'));
     historyModal.addEventListener('click', (event) => {
         if (event.target === historyModal) historyModal.classList.add('hidden');
     });
-    previewModal.addEventListener('click', (event) => {
-        if (event.target === previewModal) previewModal.classList.add('hidden');
-    });
-
-    window.openLivePreview = async (archiveId) => {
-        previewModal.classList.remove('hidden');
-        previewContent.innerHTML = '<div class="spinner" style="margin: 40px auto;"></div><p class="modal-loading">Decrypting Vault Artifacts...</p>';
-
-        try {
-            const res = await fetch(`/output/archives/${archiveId}/strategy_narrative.json`);
-            if (!res.ok) throw new Error('Preview format not supported on older legacy archives.');
-
-            const data = await res.json();
-            let html = '<div class="report-reader">';
-            html += `<h1>Executive Summary</h1><p>${escapeHtml(data.executive_summary || 'N/A')}</p>`;
-            html += `<h2>Competitive Landscape</h2><p>${escapeHtml(data.competitive_landscape_analysis || 'N/A')}</p>`;
-
-            if (data.integrated_strategy_technical) {
-                html += `<h2>Technical & AI Readiness (Pillar 1)</h2><p>${escapeHtml(data.integrated_strategy_technical.overview || 'N/A')}</p>`;
-                if (data.integrated_strategy_technical.key_initiatives) {
-                    html += `<ul>${data.integrated_strategy_technical.key_initiatives.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
-                }
-            }
-
-            if (data.content_strategy_roadmap && data.content_strategy_roadmap.length > 0) {
-                html += '<h2>Key Content Opportunities</h2>';
-                data.content_strategy_roadmap.forEach((pillar) => {
-                    html += `<h3>${escapeHtml(pillar.topic)}</h3><p>${escapeHtml(pillar.rationale)}</p>`;
-                    if (pillar.sub_topics) {
-                        html += `<ul>${pillar.sub_topics.map((topic) => `<li>${escapeHtml(topic)}</li>`).join('')}</ul>`;
-                    }
-                });
-            }
-
-            html += '</div>';
-            previewContent.innerHTML = html;
-        } catch (error) {
-            previewContent.innerHTML = `<p class="modal-error"><i data-feather="alert-triangle"></i> ${escapeHtml(error.message)}</p>`;
-            renderIcons();
-        }
-    };
 
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -602,10 +560,8 @@
         setStdoutProgress(0, 'Generation steps, live status, and saved files will appear here once the audit starts.');
         renderStdoutEmptyFiles();
 
-        Object.values(agentNodes).forEach((node) => {
-            node.className = 'node-item pending';
-            node.querySelector('.node-status').innerText = 'Awaiting...';
-        });
+        activePipelineNode = null;
+        pipelineNodeOrder.forEach((key) => updateNodeState(key, 'pending', 'Awaiting...'));
     }
 
     function startLogStream(jobId) {
@@ -633,6 +589,49 @@
     function parseAndRenderLog(rawText) {
         if (rawText.includes(': keep-alive ping')) return;
 
+        const startedNode = rawText.match(/--- \[Node\] (?:Phase [^:]+: )?(.*) ---/);
+        if (startedNode) {
+            const nodeKey = inferNodeKey(rawText);
+            if (nodeKey) {
+                setNodeActive(nodeKey, startedNode[1].trim());
+                appendStdoutStep({
+                    status: 'processing',
+                    icon: nodeIconFor(nodeKey),
+                    title: pipelineNodes[nodeKey]?.label || 'Pipeline task',
+                    detail: startedNode[1].trim()
+                });
+                return;
+            }
+        }
+
+        const completedNode = rawText.match(/\[\+\]\s+([a-z_]+)\s+completed successfully\./i);
+        if (completedNode) {
+            const nodeKey = completedNode[1].toLowerCase();
+            setNodeDone(nodeKey);
+            appendStdoutStep({
+                status: 'success',
+                icon: 'check-circle',
+                title: pipelineNodes[nodeKey]?.label || 'Completed',
+                detail: `${pipelineNodes[nodeKey]?.label || nodeKey} completed successfully.`
+            });
+            return;
+        }
+
+        const failedNode = rawText.match(/\[!\]\s+Error in ([a-z_]+):\s*(.*)/i);
+        if (failedNode) {
+            const nodeKey = failedNode[1].toLowerCase();
+            const detail = failedNode[2]?.trim() || 'Task failed during generation.';
+            setNodeFailed(nodeKey, 'Failed');
+            handleError(detail);
+            appendStdoutStep({
+                status: 'error',
+                icon: 'alert-triangle',
+                title: pipelineNodes[nodeKey]?.label || 'Pipeline task',
+                detail
+            });
+            return;
+        }
+
         if (rawText.includes('[PROGRESS]')) {
             const match = rawText.match(/\[PROGRESS\]\s*([^|]+)\|\s*(.*)/);
             if (match) {
@@ -648,27 +647,7 @@
             }
         }
 
-        if (rawText.includes('Phase 1, 1.5 & 2')) {
-            setNodeActive('extraction');
-            setNodeActive('vision');
-            setNodeActive('market');
-            centralOrb.className = 'giant-orb extracting';
-            agentMainState.innerText = 'Extracting Intelligence';
-            agentSubState.innerText = 'Scraping UI, SEO seeds, and market KPIs in parallel.';
-            currentFocusText.innerText = 'Parallel Data Extraction';
-            setStdoutStatus('processing', 'Parallel Data Extraction', 'Scraping UI, SEO seeds, and market KPIs in parallel.');
-            appendStdoutStep({
-                status: 'processing',
-                icon: 'database',
-                title: 'Parallel Data Extraction',
-                detail: 'UI, CRO, and market intelligence collection has started across the active agent nodes.'
-            });
-            return;
-        } else if (rawText.includes('Phase 4: Constructing Recursive FAISS')) {
-            setNodeDone('extraction');
-            setNodeDone('vision');
-            setNodeDone('market');
-            setNodeActive('rag');
+        if (rawText.includes('Phase 4: Constructing Recursive FAISS')) {
             centralOrb.className = 'giant-orb extracting';
             agentMainState.innerText = 'Vectorizing Context';
             agentSubState.innerText = 'Building local RAG database for rapid retrieval.';
@@ -682,8 +661,6 @@
             });
             return;
         } else if (rawText.includes('Phase 5: GPT-4o AEO Strategy Synthesis')) {
-            setNodeDone('rag');
-            setNodeActive('synthesis');
             centralOrb.className = 'giant-orb synthesizing';
             agentMainState.innerText = 'Synthesizing Strategy';
             agentSubState.innerText = 'GPT-4o is writing the integrated narrative parameters.';
@@ -697,7 +674,6 @@
             });
             return;
         } else if (rawText.includes('Phase 6: Injecting Dynamic Architecture')) {
-            setNodeDone('synthesis');
             centralOrb.className = 'giant-orb booting';
             agentMainState.innerText = 'Compiling Deliverables';
             agentSubState.innerText = 'Generating dynamic charts, Excel models, and native DOCX.';
@@ -738,21 +714,71 @@
         });
     }
 
-    function setNodeActive(key) {
-        if (!agentNodes[key]) return;
-        agentNodes[key].className = 'node-item active';
-        agentNodes[key].querySelector('.node-status').innerText = 'Processing...';
+    function updateNodeState(key, stateClass, statusText) {
+        const node = pipelineNodes[key]?.element;
+        if (!node) return;
+        node.className = `node-item ${stateClass}`;
+        const statusEl = node.querySelector('.node-status');
+        if (statusEl) statusEl.innerText = statusText;
+    }
+
+    function setNodeActive(key, detail) {
+        if (!pipelineNodes[key]) return;
+        if (activePipelineNode && activePipelineNode !== key) {
+            const activeEl = pipelineNodes[activePipelineNode]?.element;
+            if (activeEl && activeEl.classList.contains('active')) {
+                updateNodeState(activePipelineNode, 'pending', 'Queued');
+            }
+        }
+        activePipelineNode = key;
+        updateNodeState(key, 'active', 'In progress');
+        currentFocusText.innerText = detail || `${pipelineNodes[key].label} in progress`;
     }
 
     function setNodeDone(key) {
-        if (!agentNodes[key]) return;
-        agentNodes[key].className = 'node-item done';
-        agentNodes[key].querySelector('.node-status').innerText = 'Complete';
+        if (!pipelineNodes[key]) return;
+        updateNodeState(key, 'done', 'Completed');
+        if (activePipelineNode === key) activePipelineNode = null;
+    }
+
+    function setNodeFailed(key, detail) {
+        if (!pipelineNodes[key]) return;
+        updateNodeState(key, 'failed', detail || 'Failed');
+        if (activePipelineNode === key) activePipelineNode = null;
+    }
+
+    function inferNodeKey(rawText) {
+        const normalized = rawText.toLowerCase();
+        if (normalized.includes('phase 1') && normalized.includes('vision')) return 'extraction';
+        if (normalized.includes('phase 2: high-quality market intelligence')) return 'market_intel';
+        if (normalized.includes('phase 2.5')) return 'competitor_shadow';
+        if (normalized.includes('phase 3: technical')) return 'technical_audit';
+        if (normalized.includes('phase 4: constructing recursive faiss')) return 'deep_rag';
+        if (normalized.includes('phase 5: gpt-4o aeo strategy synthesis')) return 'strategy_synthesis';
+        if (normalized.includes('phase 6: injecting dynamic architecture')) return 'deliverables';
+        return null;
+    }
+
+    function nodeIconFor(key) {
+        const iconMap = {
+            extraction: 'database',
+            market_intel: 'bar-chart-2',
+            competitor_shadow: 'users',
+            technical_audit: 'search',
+            deep_rag: 'layers',
+            strategy_synthesis: 'edit-3',
+            deliverables: 'package'
+        };
+        return iconMap[key] || 'activity';
     }
 
     async function finishPipeline(jobId) {
         const currentActive = logList.querySelector('.active');
         if (currentActive) currentActive.classList.remove('active');
+        if (activePipelineNode && pipelineNodes[activePipelineNode]) {
+            setNodeDone(activePipelineNode);
+        }
+        setNodeDone('deliverables');
 
         currentFocusText.innerText = 'Audit Successfully Compiled.';
         agentLiveStatus.classList.add('hidden');
@@ -770,19 +796,8 @@
             bindDeliverable(docxLink, 'docx', availability.docx !== false, jobId);
             bindDeliverable(xlsxLink, 'xlsx', availability.xlsx !== false, jobId);
             bindDeliverable(pptxLink, 'pptx', availability.pptx !== false, jobId);
-
-            const res = await fetch('/api/history');
-            const data = await res.json();
-            if (data.history && data.history.length > 0) {
-                const latest = data.history[0];
-                const previewBtn = document.getElementById('livePreviewBtn');
-                if (previewBtn) {
-                    previewBtn.classList.remove('hidden');
-                    previewBtn.onclick = () => window.openLivePreview(latest.archive_id);
-                }
-            }
         } catch (error) {
-            console.error('Failed to fetch latest archive for preview binding', error);
+            console.error('Failed to bind deliverables', error);
         }
 
         setTimeout(() => {
@@ -814,6 +829,9 @@
     }
 
     function handleError(message) {
+        if (activePipelineNode && pipelineNodes[activePipelineNode]) {
+            setNodeFailed(activePipelineNode, 'Failed');
+        }
         centralOrb.style.background = 'radial-gradient(circle, #fff 5%, #ef4444 40%, transparent 70%)';
         centralOrb.style.animation = 'none';
         agentMainState.innerText = 'Critical Failure';
