@@ -3,6 +3,7 @@ import sys
 import asyncio
 import subprocess
 import json
+from typing import List, Optional
 from fastapi import FastAPI, BackgroundTasks, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -39,7 +40,7 @@ jobs = {}
 job_logs = {}
 history_store = []
 
-async def run_audit_job(job_id: str, domain: str, company: str):
+async def run_audit_job(job_id: str, domain: str, company: str, competitors: Optional[List[str]] = None):
     """Background task to run the pipeline visually via subprocess."""
     jobs[job_id]["status"] = "running"
     jobs[job_id]["message"] = "Starting audit pipeline..."
@@ -56,6 +57,12 @@ async def run_audit_job(job_id: str, domain: str, company: str):
     session_dir = os.path.join(OUTPUT_DIR, "sessions", job_id)
     os.makedirs(session_dir, exist_ok=True)
     jobs[job_id]["output_dir"] = session_dir
+    competitor_file = os.path.join(session_dir, "user_competitors.json")
+    if competitors:
+        with open(competitor_file, "w", encoding="utf-8") as f:
+            json.dump({"competitors": competitors}, f, indent=2)
+    else:
+        competitor_file = ""
 
     # Use venv python if available, otherwise fallback to current sys.executable
     venv_python_win = os.path.join(project_root_dir, "venv", "Scripts", "python.exe")
@@ -74,7 +81,19 @@ async def run_audit_job(job_id: str, domain: str, company: str):
         
         # On Windows, using shell is often more reliable for finding python/venv
         # Construct the command string properly for the shell
-        cmd = f'"{python_exe}" -u "{script_path}" "{domain}" "{company}" "us" "{session_dir}" "{job_id}"'
+        cmd_parts = [
+            f'"{python_exe}"',
+            "-u",
+            f'"{script_path}"',
+            f'"{domain}"',
+            f'"{company}"',
+            '"us"',
+            f'"{session_dir}"',
+            f'"{job_id}"',
+        ]
+        if competitor_file:
+            cmd_parts.append(f'"{competitor_file}"')
+        cmd = " ".join(cmd_parts)
         print(f" [+] Launching Subprocess: {cmd}")
         
         process = await asyncio.create_subprocess_shell(
@@ -118,17 +137,30 @@ async def run_audit_job(job_id: str, domain: str, company: str):
 async def serve_ui():
     """Serves the main frontend UI."""
     index_path = os.path.join(STATIC_DIR, "index.html")
-    with open(index_path, "r", encoding="utf-8") as f:
-        return f.read()
+    return FileResponse(index_path, media_type="text/html")
 
 @app.post("/api/start-audit")
-async def start_audit(domain: str = Form(...), company: str = Form(...), background_tasks: BackgroundTasks = BackgroundTasks()):
+async def start_audit(
+    domain: str = Form(...),
+    company: str = Form(...),
+    competitors: Optional[str] = Form(None),
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
     import uuid
     job_id = str(uuid.uuid4())
-    jobs[job_id] = {"status": "starting", "message": "Initializing...", "domain": domain}
+    competitor_list: List[str] = []
+    if competitors:
+        try:
+            parsed = json.loads(competitors)
+            if isinstance(parsed, list):
+                competitor_list = [str(item).strip() for item in parsed if str(item).strip()]
+        except json.JSONDecodeError:
+            competitor_list = []
+
+    jobs[job_id] = {"status": "starting", "message": "Initializing...", "domain": domain, "company": company, "competitors": competitor_list}
     job_logs[job_id] = ["Initializing LangGraph Orchestrator..."]
     
-    background_tasks.add_task(run_audit_job, job_id, domain, company)
+    background_tasks.add_task(run_audit_job, job_id, domain, company, competitor_list)
     return JSONResponse({"job_id": job_id})
 
 @app.get("/api/status/{job_id}")

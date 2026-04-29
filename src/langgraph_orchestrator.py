@@ -32,6 +32,7 @@ class AuditState(TypedDict):
     company_name: str
     target_country: str
     output_dir: str
+    user_competitors: List[str]
     
     scraped_data: List[dict]
     business_analysis: dict
@@ -122,6 +123,7 @@ def phase_2_market_intelligence(state: AuditState):
             blacklist_terms=blacklist, 
             database=state["target_country"]
         )
+        mi = merge_user_competitors(mi, state.get("user_competitors", []), state["target_country"])
         
         # New: Contextual Intelligence Refinement (AI Audit)
         mi = refine_intelligence(mi, ba)
@@ -347,7 +349,78 @@ workflow.add_edge("deliverables", END)
 # Compile into an executable AI agent
 app = workflow.compile()
 
-def run_langgraph_pipeline(domain: str, company: str, country: str = "us", custom_out_dir: Optional[str] = None, job_id: Optional[str] = None):
+def _looks_like_domain(value: str) -> bool:
+    text = (value or "").strip().lower()
+    return "." in text and " " not in text
+
+def _enrich_competitor_entry(domain: str, database: str) -> Dict[str, Union[str, int]]:
+    try:
+        from semrush_client import SemrushClient
+        client = SemrushClient()
+        ranks = client.get_domain_ranks(domain, database)
+        backlinks = client.get_backlinks_overview(domain)
+        return {
+            "domain": domain,
+            "authority_score": int(ranks.get("Rank", 0)) if ranks else 0,
+            "organic_keywords": int(ranks.get("Organic Keywords", 0)) if ranks else 0,
+            "organic_traffic": int(ranks.get("Organic Traffic", 0)) if ranks else 0,
+            "organic_traffic_value": int(ranks.get("Organic Cost", 0)) if ranks else 0,
+            "backlinks": int(backlinks.get("total", 0)) if backlinks else 0,
+            "referring_domains": int(backlinks.get("domains_num", 0)) if backlinks else 0,
+            "source": "user",
+        }
+    except Exception as exc:
+        print(f" [!] User competitor enrichment failed for {domain}: {exc}")
+        return {
+            "domain": domain,
+            "authority_score": 0,
+            "organic_keywords": 0,
+            "organic_traffic": 0,
+            "organic_traffic_value": 0,
+            "backlinks": 0,
+            "referring_domains": 0,
+            "source": "user",
+        }
+
+def merge_user_competitors(market_intelligence: dict, user_competitors: List[str], database: str) -> dict:
+    if not user_competitors:
+        return market_intelligence
+
+    existing = market_intelligence.get("competitors", []) or []
+    existing_map = {str(item.get("domain", "")).strip().lower(): item for item in existing if item.get("domain")}
+    merged: List[dict] = []
+
+    for raw in user_competitors[:3]:
+        clean_value = str(raw).strip()
+        if not clean_value:
+            continue
+        domain_key = clean_value.lower()
+        if domain_key in existing_map:
+            entry = dict(existing_map.pop(domain_key))
+            entry["source"] = "user"
+            merged.append(entry)
+            continue
+
+        if _looks_like_domain(clean_value):
+            merged.append(_enrich_competitor_entry(clean_value, database))
+        else:
+            merged.append({
+                "domain": clean_value,
+                "authority_score": 0,
+                "organic_keywords": 0,
+                "organic_traffic": 0,
+                "organic_traffic_value": 0,
+                "backlinks": 0,
+                "referring_domains": 0,
+                "source": "user",
+            })
+
+    merged.extend(existing)
+    market_intelligence["competitors"] = merged[:5]
+    market_intelligence["user_competitors"] = user_competitors[:3]
+    return market_intelligence
+
+def run_langgraph_pipeline(domain: str, company: str, country: str = "us", custom_out_dir: Optional[str] = None, job_id: Optional[str] = None, competitor_file: Optional[str] = None):
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     
     if custom_out_dir:
@@ -373,12 +446,23 @@ def run_langgraph_pipeline(domain: str, company: str, country: str = "us", custo
     # Initial State Initialization (Ensure Job ID is definitely set)
     # Note: Using a dict as the starting point for LangGraph state
     resolved_job_id = job_id or (out_dir.split("/")[-1] if out_dir and "sessions" in out_dir else f"job_{int(datetime.datetime.now().timestamp())}")
+    user_competitors: List[str] = []
+    if competitor_file and os.path.exists(competitor_file):
+        try:
+            with open(competitor_file, "r", encoding="utf-8") as f:
+                payload = json.load(f)
+                competitors = payload.get("competitors", [])
+                if isinstance(competitors, list):
+                    user_competitors = [str(item).strip() for item in competitors if str(item).strip()]
+        except Exception as exc:
+            print(f" [!] Unable to read user competitors file: {exc}")
     
     initial_state = {
         "domain": clean_domain,
         "company_name": company,
         "target_country": country,
         "output_dir": out_dir,
+        "user_competitors": user_competitors,
         "scraped_data": [],
         "business_analysis": {},
         "cro_assessment": {},
@@ -419,7 +503,7 @@ def run_langgraph_pipeline(domain: str, company: str, country: str = "us", custo
 if __name__ == "__main__":
     import sys
     if len(sys.argv) < 3:
-        print("Usage: python langgraph_orchestrator.py <domain> <company_name> [target_country] [output_dir]")
+        print("Usage: python langgraph_orchestrator.py <domain> <company_name> [target_country] [output_dir] [job_id] [competitor_file]")
         sys.exit(1)
     
     domain = sys.argv[1]
@@ -427,5 +511,6 @@ if __name__ == "__main__":
     country = sys.argv[3] if len(sys.argv) > 3 else "us"
     out_dir = sys.argv[4] if len(sys.argv) > 4 else None
     job_id = sys.argv[5] if len(sys.argv) > 5 else None
+    competitor_file = sys.argv[6] if len(sys.argv) > 6 else None
     
-    run_langgraph_pipeline(domain, company, country, out_dir, job_id)
+    run_langgraph_pipeline(domain, company, country, out_dir, job_id, competitor_file)
