@@ -74,6 +74,32 @@ def _dedupe_bullets(bullets):
     return unique
 
 
+def _text_len(value):
+    return len(str(value or "").strip())
+
+
+def _slide_has_substance(slide: Slide, index: int) -> bool:
+    if index == 0:
+        return _text_len(slide.title) > 0
+    if _text_len(slide.title) < 8:
+        return False
+    if _text_len(slide.takeaway) < 24:
+        return False
+    meaningful_bullets = [b for b in (slide.bullets or []) if _text_len(b) >= 28]
+    if slide.layout == "section":
+        return len(meaningful_bullets) >= 2 or len(slide.visual_data or []) >= 2
+    return len(meaningful_bullets) >= 3
+
+
+def _presentation_is_complete(slides: List[Slide]) -> bool:
+    if not slides or len(slides) < 15:
+        return False
+    for idx, slide in enumerate(slides):
+        if not _slide_has_substance(slide, idx):
+            return False
+    return True
+
+
 def synthesize_ppt_json(session_dir, company_name):
     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
     
@@ -87,6 +113,7 @@ def synthesize_ppt_json(session_dir, company_name):
     ba = load_json_safe("business_analysis.json")
     na = load_json_safe("strategy_narrative.json")
     au = load_json_safe("audit_findings.json")
+    mi = load_json_safe("market_intelligence.json")
 
     model_name = "gpt-4o"
     
@@ -120,22 +147,29 @@ def synthesize_ppt_json(session_dir, company_name):
 
     --- DATA CONTEXT ---
     BUSINESS: {json.dumps(ba, indent=2)}
+    MARKET: {json.dumps(mi, indent=2)}
     STRATEGY: {json.dumps(na, indent=2)}
     AUDIT: {json.dumps(au, indent=2)}
     """
     
-    print(f"Synthesizing v15.6 Executive Deck via {model_name}...")
-    completion = client.beta.chat.completions.parse(
-        model=model_name,
-        messages=[
-            {"role": "system", "content": "You are a Senior Growth Architect. Output must be extremely detailed, referencing specific audit technicalities. NO GENERIC CONTENT. [CATEGORY] tags are mandatory."},
-            {"role": "user", "content": prompt}
-        ],
-        response_format=PresentationData,
-        temperature=0.7
-    )
-    
-    slides = completion.choices[0].message.parsed.slides
+    slides = []
+    for attempt in range(2):
+        print(f"Synthesizing v15.6 Executive Deck via {model_name}... (attempt {attempt + 1})")
+        completion = client.beta.chat.completions.parse(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": "You are a Senior Growth Architect. Output must be extremely detailed, referencing specific audit technicalities. NO GENERIC CONTENT. [CATEGORY] tags are mandatory."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format=PresentationData,
+            temperature=0.7
+        )
+        slides = completion.choices[0].message.parsed.slides
+        if _presentation_is_complete(slides):
+            break
+        print("PPT synthesis returned incomplete slide content. Retrying with the same audit payload...")
+    else:
+        raise ValueError("PPT synthesis returned incomplete slide content; blocking PPT generation to avoid thin deployed decks.")
     
     # Post-process for V9 Archetypes & Title Data
     for i, slide in enumerate(slides):
@@ -197,6 +231,9 @@ def synthesize_ppt_json(session_dir, company_name):
                     "Trust Factor: 75%",
                     "Engine Speed: 82%"
                 ]
+
+    if not _presentation_is_complete(slides):
+        raise ValueError("PPT synthesis remained incomplete after retries.")
 
     data = [s.model_dump() for s in slides]
     

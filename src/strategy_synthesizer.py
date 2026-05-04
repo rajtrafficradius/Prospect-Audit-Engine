@@ -63,6 +63,46 @@ class StrategyNarrative(BaseModel):
         description="A mapping of the prospect's primary services to their market potential and expected ROI."
     )
 
+
+def _non_empty_text(value) -> str:
+    return str(value or "").strip()
+
+
+def _strategy_is_complete(payload: dict) -> bool:
+    if not isinstance(payload, dict):
+        return False
+
+    long_form_fields = [
+        "executive_summary",
+        "company_profile",
+        "digital_maturity_assessment",
+        "competitive_landscape_analysis",
+    ]
+    if any(len(_non_empty_text(payload.get(field))) < 180 for field in long_form_fields):
+        return False
+
+    if len(payload.get("seo_quick_wins", []) or []) < 3:
+        return False
+    if len(payload.get("content_strategy_roadmap", []) or []) < 3:
+        return False
+    if len(payload.get("revenue_opportunity_map", []) or []) < 3:
+        return False
+
+    for pillar_key in [
+        "integrated_strategy_technical",
+        "integrated_strategy_content",
+        "integrated_strategy_authority",
+    ]:
+        pillar = payload.get(pillar_key) or {}
+        if len(_non_empty_text(pillar.get("overview"))) < 160:
+            return False
+        if len(pillar.get("key_initiatives", []) or []) < 3:
+            return False
+        if len(pillar.get("impact_matrix", []) or []) < 2:
+            return False
+
+    return True
+
 def synthesize_strategy(business_data: dict, market_data: dict, audit_data: dict, rag_db=None) -> dict:
     """
     Uses GPT-4o to synthesize the raw JSON data into a cohesive,
@@ -109,17 +149,23 @@ def synthesize_strategy(business_data: dict, market_data: dict, audit_data: dict
     {rag_context}
     """
     
-    completion = client.beta.chat.completions.parse(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": "You are a Senior Strategic Growth Partner. Your goal is to make the prospect feel the massive value in our partnership through data-backed, revenue-focused storytelling."},
-            {"role": "user", "content": prompt}
-        ],
-        response_format=StrategyNarrative,
-        temperature=0.3
-    )
-    
-    return completion.choices[0].message.parsed.model_dump()
+    last_payload = None
+    for attempt in range(2):
+        completion = client.beta.chat.completions.parse(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a Senior Strategic Growth Partner. Your goal is to make the prospect feel the massive value in our partnership through data-backed, revenue-focused storytelling."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format=StrategyNarrative,
+            temperature=0.3
+        )
+        last_payload = completion.choices[0].message.parsed.model_dump()
+        if _strategy_is_complete(last_payload):
+            return last_payload
+        print(f"Strategy synthesis attempt {attempt + 1} returned incomplete narrative. Retrying...")
+
+    raise ValueError("Strategy synthesis returned incomplete narrative content; blocking deliverable generation to avoid thin DOCX/PPT output.")
 
 if __name__ == "__main__":
     # Local dry-run testing

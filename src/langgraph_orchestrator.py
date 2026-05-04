@@ -45,6 +45,59 @@ class AuditState(TypedDict):
     errors: List[str]
     job_id: str
 
+
+def _safe_read_json(path: str) -> dict:
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _text_len(value: Any) -> int:
+    return len(str(value or "").strip())
+
+
+def _artifact_validation_issues(output_dir: str) -> List[str]:
+    issues: List[str] = []
+
+    business = _safe_read_json(os.path.join(output_dir, "business_analysis.json"))
+    market = _safe_read_json(os.path.join(output_dir, "market_intelligence.json"))
+    audit = _safe_read_json(os.path.join(output_dir, "audit_findings.json"))
+    narrative = _safe_read_json(os.path.join(output_dir, "strategy_narrative.json"))
+    shadow = _safe_read_json(os.path.join(output_dir, "competitor_shadowing.json"))
+
+    if _text_len(business.get("description")) < 80 or len(business.get("primary_services", []) or []) < 2:
+        issues.append("business_analysis.json is missing core business context.")
+
+    prospect = market.get("prospect", {}) or {}
+    if not prospect or int(prospect.get("organic_keywords", 0) or 0) <= 0 or int(prospect.get("organic_traffic", 0) or 0) <= 0:
+        issues.append("market_intelligence.json is incomplete or missing live market metrics.")
+    if len(market.get("competitors", []) or []) < 2:
+        issues.append("market_intelligence.json is missing competitor coverage.")
+
+    scorecard = audit.get("scorecard", {}) or {}
+    if not scorecard or scorecard.get("overall_score") in (None, "", 0, "0"):
+        issues.append("audit_findings.json is incomplete or missing scorecard data.")
+
+    long_fields = [
+        narrative.get("executive_summary"),
+        narrative.get("company_profile"),
+        narrative.get("digital_maturity_assessment"),
+        narrative.get("competitive_landscape_analysis"),
+    ]
+    if any(_text_len(value) < 180 for value in long_fields):
+        issues.append("strategy_narrative.json is incomplete or overly thin.")
+    if len(narrative.get("content_strategy_roadmap", []) or []) < 3:
+        issues.append("strategy_narrative.json is missing roadmap detail.")
+
+    if len(shadow.get("competitors", []) or []) < 2 and len(shadow.get("gaps", []) or []) < 2:
+        issues.append("competitor_shadowing.json is incomplete or missing comparison insights.")
+
+    return issues
+
 # -------------------------------------------------------------
 # LangGraph Nodes
 # -------------------------------------------------------------
@@ -85,9 +138,22 @@ def phase_1_extraction_and_vision(state: AuditState):
             
     except Exception as e:
         print(f" [!] Extraction Phase Error: {e}")
-        # If extraction completely fails, we need at least a dummy BA to avoid crashes in later nodes
         if not ba:
             ba = {"company_name": state["company_name"], "domain": state["domain"], "seed_keywords": {"seo_seeds": [state["company_name"]]}}
+        return {
+            "scraped_data": scraped,
+            "business_analysis": ba,
+            "cro_assessment": cro,
+            "errors": [f"Extraction Phase Error: {e}"],
+        }
+
+    if not ba or _text_len(ba.get("description")) < 80 or len(ba.get("primary_services", []) or []) < 2:
+        return {
+            "scraped_data": scraped,
+            "business_analysis": ba,
+            "cro_assessment": cro,
+            "errors": ["Extraction phase produced incomplete business analysis; blocking thin deliverables."],
+        }
         
     return {"scraped_data": scraped, "business_analysis": ba, "cro_assessment": cro}
 
@@ -264,6 +330,10 @@ def phase_6_deliverables(state: AuditState):
         state["errors"] = []
 
     try:
+        validation_issues = _artifact_validation_issues(state["output_dir"])
+        if validation_issues:
+            raise ValueError(" | ".join(validation_issues))
+
         subprocess.run([python_exe, os.path.join(script_dir, "create_charts.py")], check=True, env=env_vars, cwd=project_root)
         subprocess.run([python_exe, os.path.join(script_dir, "create_strategy_docx.py")], check=True, env=env_vars, cwd=project_root)
         subprocess.run([python_exe, os.path.join(script_dir, "create_action_plan_xlsx.py")], check=True, env=env_vars, cwd=project_root)
