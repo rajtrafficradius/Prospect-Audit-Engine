@@ -39,6 +39,25 @@ async def scrape_page(page, url, retry_count=2):
             return {"url": url, "content": ""}
     return {"url": url, "content": ""}
 
+
+async def capture_homepage_screenshot(page, base_url, output_dir, retry_count=2):
+    screenshot_path = os.path.join(output_dir, "homepage_screenshot.png")
+    last_error = None
+    for attempt in range(retry_count + 1):
+        try:
+            await page.goto(base_url, wait_until="load", timeout=45000)
+            await page.wait_for_timeout(5000)
+            await page.screenshot(path=screenshot_path, full_page=True)
+            if not os.path.exists(screenshot_path) or os.path.getsize(screenshot_path) == 0:
+                raise RuntimeError(f"Screenshot file was not written correctly at {screenshot_path}")
+            print(f"Saved UI Screenshot: {screenshot_path}")
+            return screenshot_path
+        except Exception as e:
+            last_error = e
+            print(f"Failed to capture screenshot (attempt {attempt + 1}/{retry_count + 1}) for {base_url}: {e}")
+            await asyncio.sleep(2)
+    raise RuntimeError(f"Homepage screenshot capture failed for {base_url}: {last_error}")
+
 async def scrape_website_core_pages(base_url, output_dir=None):
     """
     Crawls the homepage and attempts to find/scrape About, Services, and Contact pages.
@@ -67,7 +86,8 @@ async def scrape_website_core_pages(base_url, output_dir=None):
         # Use realistic headers
         context = await browser.new_context(
             user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-            viewport={"width": 1920, "height": 1080}
+            viewport={"width": 1920, "height": 1080},
+            ignore_https_errors=True,
         )
         page = await context.new_page()
         
@@ -75,14 +95,7 @@ async def scrape_website_core_pages(base_url, output_dir=None):
         print(f"Scraping Homepage (Stealth Mode): {base_url}")
         
         # Take screenshot for Vision Agent
-        try:
-            await page.goto(base_url, wait_until="domcontentloaded", timeout=30000)
-            await page.wait_for_timeout(4000) # Give it 4 seconds to render images
-            screenshot_path = os.path.join(output_dir, "homepage_screenshot.png")
-            await page.screenshot(path=screenshot_path, full_page=True)
-            print(f"Saved UI Screenshot: {screenshot_path}")
-        except Exception as e:
-            print(f"Failed to capture screenshot: {e}")
+        await capture_homepage_screenshot(page, base_url, output_dir)
             
         home_data = await scrape_page(page, base_url)
         results.append(home_data)

@@ -584,6 +584,26 @@ def create_before_after_chart(current_scores, renderer=None):
     print('Chart saved: before_after_scores.png')
 
 
+def _chart_validation_issues(mi, audit):
+    issues = []
+    prospect = mi.get('prospect', {}) or {}
+    scorecard = audit.get('scorecard', {}) or {}
+
+    if not prospect:
+        issues.append('market_intelligence.json is missing prospect data.')
+    if int(prospect.get('organic_keywords', 0) or 0) <= 0:
+        issues.append('Prospect organic keyword count is missing or zero.')
+    if int(prospect.get('organic_traffic', 0) or 0) <= 0:
+        issues.append('Prospect organic traffic is missing or zero.')
+    if int(prospect.get('organic_traffic_value', 0) or 0) <= 0:
+        issues.append('Prospect traffic value is missing or zero.')
+    if len(mi.get('competitors', []) or []) < 2:
+        issues.append('Competitor market data is incomplete.')
+    if not scorecard or scorecard.get('overall_score') in (None, '', 0, '0'):
+        issues.append('Audit scorecard data is incomplete.')
+    return issues
+
+
 if __name__ == '__main__':
     mi = {}
     audit = {}
@@ -598,6 +618,10 @@ if __name__ == '__main__':
             audit = json.load(f)
     except Exception as e:
         print(f'Error loading audit data: {e}')
+
+    validation_issues = _chart_validation_issues(mi, audit)
+    if validation_issues:
+        raise ValueError("Cannot build charts from incomplete audit data: " + " | ".join(validation_issues))
 
     real_competitors = [
         {
@@ -626,15 +650,6 @@ if __name__ == '__main__':
     aeo_vol = sum(int(k.get('Search Volume', 0) or 0) for k in mi.get('aeo_indicators', {}).get('top_question_keywords', []))
     geo_vol = sum(int(k.get('Search Volume', 0) or 0) for k in mi.get('geo_indicators', {}).get('top_informational_keywords', []))
     seo_vol = sum(int(k.get('Search Volume', 0) or 0) for k in mi.get('prospect', {}).get('top_keywords', []))
-
-    if seo_vol == 0:
-        seo_vol = 100
-    if aeo_vol == 0:
-        aeo_vol = 50
-    if geo_vol == 0:
-        geo_vol = 50
-    if seo_kws == 0:
-        seo_kws = 10
 
     real_layer_data = {
         'SEO': {'count': seo_kws, 'total_volume': seo_vol},

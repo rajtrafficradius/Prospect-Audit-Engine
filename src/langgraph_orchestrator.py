@@ -66,8 +66,10 @@ def _artifact_validation_issues(output_dir: str) -> List[str]:
     business = _safe_read_json(os.path.join(output_dir, "business_analysis.json"))
     market = _safe_read_json(os.path.join(output_dir, "market_intelligence.json"))
     audit = _safe_read_json(os.path.join(output_dir, "audit_findings.json"))
+    cro = _safe_read_json(os.path.join(output_dir, "cro_assessment.json"))
     narrative = _safe_read_json(os.path.join(output_dir, "strategy_narrative.json"))
     shadow = _safe_read_json(os.path.join(output_dir, "competitor_shadowing.json"))
+    screenshot_path = os.path.join(output_dir, "homepage_screenshot.png")
 
     if _text_len(business.get("description")) < 80 or len(business.get("primary_services", []) or []) < 2:
         issues.append("business_analysis.json is missing core business context.")
@@ -81,6 +83,11 @@ def _artifact_validation_issues(output_dir: str) -> List[str]:
     scorecard = audit.get("scorecard", {}) or {}
     if not scorecard or scorecard.get("overall_score") in (None, "", 0, "0"):
         issues.append("audit_findings.json is incomplete or missing scorecard data.")
+
+    if not os.path.exists(screenshot_path) or os.path.getsize(screenshot_path) == 0:
+        issues.append("homepage_screenshot.png is missing; CRO screenshot capture failed.")
+    if len(cro.get("findings", []) or []) < 3:
+        issues.append("cro_assessment.json is incomplete or missing CRO findings.")
 
     long_fields = [
         narrative.get("executive_summary"),
@@ -132,9 +139,15 @@ def phase_1_extraction_and_vision(state: AuditState):
                 with open(os.path.join(state["output_dir"], "cro_assessment.json"), "w") as f:
                     json.dump(cro, f, indent=2)
             else:
-                print(" [!] Warning: Screenshot not found. Skipping Vision CRO.")
+                raise FileNotFoundError(f"Screenshot not found at {screenshot_path}.")
         except Exception as e:
             print(f" [!] Vision Error: {e}")
+            return {
+                "scraped_data": scraped,
+                "business_analysis": ba,
+                "cro_assessment": cro,
+                "errors": [f"Vision CRO Error: {e}"],
+            }
             
     except Exception as e:
         print(f" [!] Extraction Phase Error: {e}")

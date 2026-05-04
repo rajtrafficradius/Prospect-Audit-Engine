@@ -140,6 +140,54 @@ FONT_SEARCH_DIRS = [
 # HELPER FUNCTIONS
 # ══════════════════════════════════════════════════════════════
 
+def _text_len(value):
+    return len(str(value or "").strip())
+
+
+def _candidate_homepage_screenshot():
+    candidates = [
+        os.environ.get("HOMEPAGE_SCREENSHOT_PATH", ""),
+        os.path.join(DATA_DIR, "homepage_screenshot.png"),
+        os.path.join(DATA_DIR, "homepage_screenshot.jpg"),
+        os.path.join(CHARTS_DIR, "homepage_screenshot.png"),
+    ]
+    for candidate in candidates:
+        if candidate and os.path.exists(candidate) and os.path.getsize(candidate) > 0:
+            return candidate
+    return ""
+
+
+def _docx_validation_issues():
+    issues = []
+    prospect = market_data.get("prospect", {}) or {}
+    scorecard = audit_data.get("scorecard", {}) or {}
+
+    if not prospect:
+        issues.append("market_intelligence.json is missing prospect data.")
+    if int(prospect.get("organic_keywords", 0) or 0) <= 0:
+        issues.append("Organic keyword data is missing or zero.")
+    if int(prospect.get("organic_traffic", 0) or 0) <= 0:
+        issues.append("Organic traffic data is missing or zero.")
+    if int(prospect.get("organic_traffic_value", 0) or 0) <= 0:
+        issues.append("Traffic value data is missing or zero.")
+    if len(market_data.get("competitors", []) or []) < 2:
+        issues.append("Competitor market comparison data is incomplete.")
+
+    if not scorecard or scorecard.get("overall_score") in (None, "", 0, "0"):
+        issues.append("Audit scorecard data is incomplete.")
+
+    if _text_len(narrative_data.get("executive_summary")) < 180:
+        issues.append("Strategy narrative executive summary is incomplete.")
+
+    if len(cro_data.get("findings", []) or []) < 3:
+        issues.append("CRO findings are incomplete.")
+
+    if not _candidate_homepage_screenshot():
+        issues.append("Homepage screenshot is missing.")
+
+    return issues
+
+
 def set_cell_shading(cell, color_hex):
     shading = parse_xml(f'<w:shd {nsdecls("w")} w:fill="{color_hex}" w:val="clear"/>')
     cell._tc.get_or_add_tcPr().append(shading)
@@ -2400,6 +2448,10 @@ def add_footer(section):
 # ══════════════════════════════════════════════════════════════
 # DOCUMENT CREATION
 # ══════════════════════════════════════════════════════════════
+
+_validation_issues = _docx_validation_issues()
+if _validation_issues:
+    raise ValueError("Cannot build DOCX from incomplete audit data: " + " | ".join(_validation_issues))
 
 doc = Document()
 
