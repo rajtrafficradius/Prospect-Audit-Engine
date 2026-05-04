@@ -175,6 +175,17 @@ def _docx_validation_issues():
 
     if not scorecard or scorecard.get("overall_score") in (None, "", 0, "0"):
         issues.append("Audit scorecard data is incomplete.")
+    layer_scores = [int(scorecard.get(key, 0) or 0) for key in ("seo_score", "aeo_score", "geo_score")]
+    if layer_scores.count(0) == 3:
+        issues.append("Technical audit produced all-zero SEO/AEO/GEO scores.")
+    error_findings = sum(
+        1
+        for bucket in ("seo_findings", "aeo_findings", "geo_findings")
+        for finding in (audit_data.get(bucket, []) or [])
+        if str((finding or {}).get("current_status", "")).upper() == "ERROR"
+    )
+    if error_findings >= 2:
+        issues.append("Technical audit contains transport/access errors.")
 
     if _text_len(narrative_data.get("executive_summary")) < 180:
         issues.append("Strategy narrative executive summary is incomplete.")

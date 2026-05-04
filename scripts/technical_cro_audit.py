@@ -15,6 +15,7 @@ Usage: python3 technical_cro_audit.py <domain>
 import json
 import os
 import sys
+import time
 import requests
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
@@ -24,6 +25,49 @@ from bs4 import BeautifulSoup
 # ══════════════════════════════════════════════════════════════
 
 OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "/home/ubuntu/output")
+REQUEST_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+}
+requests.packages.urllib3.disable_warnings()
+
+
+def _looks_like_bot_gate(status_code, body_text):
+    preview = (body_text or "")[:1500].lower()
+    return status_code in {401, 403, 406, 429, 503} or any(
+        token in preview for token in [
+            "checking your browser",
+            "enable javascript",
+            "enable cookies",
+            "captcha",
+            "attention required",
+            "access denied",
+            "cloudflare",
+        ]
+    )
+
+
+def _http_get(url, timeout=15, allow_redirects=True):
+    last_error = None
+    for attempt in range(3):
+        try:
+            resp = requests.get(
+                url,
+                timeout=timeout,
+                allow_redirects=allow_redirects,
+                headers=REQUEST_HEADERS,
+                verify=(attempt == 0),
+            )
+            return resp
+        except requests.exceptions.SSLError as e:
+            last_error = e
+        except Exception as e:
+            last_error = e
+        time.sleep(1.5)
+    raise last_error or RuntimeError(f"Request failed for {url}")
 
 # ══════════════════════════════════════════════════════════════
 # OUTPUT SCHEMA
@@ -62,7 +106,7 @@ audit_findings = {
 def check_robots_txt(base_url):
     """Check robots.txt for SEO blocking issues."""
     try:
-        resp = requests.get(urljoin(base_url, '/robots.txt'), timeout=10)
+        resp = _http_get(urljoin(base_url, '/robots.txt'), timeout=10)
         if resp.status_code == 200:
             content = resp.text
             lines = content.split('\n')
@@ -104,7 +148,7 @@ def check_robots_txt(base_url):
 def check_sitemap(base_url):
     """Check for XML sitemap."""
     try:
-        resp = requests.get(urljoin(base_url, '/sitemap.xml'), timeout=10)
+        resp = _http_get(urljoin(base_url, '/sitemap.xml'), timeout=10)
         if resp.status_code == 200 and ('<?xml' in resp.text or '<urlset' in resp.text or '<sitemapindex' in resp.text):
             return {
                 "layer": "SEO", "severity": "Info", "area": "Indexability",
@@ -135,7 +179,10 @@ def check_homepage_seo(base_url):
     """Check on-page SEO elements of the homepage."""
     findings = []
     try:
-        resp = requests.get(base_url, timeout=15, allow_redirects=True)
+        resp = _http_get(base_url, timeout=15, allow_redirects=True)
+        if _looks_like_bot_gate(resp.status_code, resp.text):
+            raise RuntimeError(f"Homepage returned a blocked/challenge response (HTTP {resp.status_code})")
+        resp.raise_for_status()
         soup = BeautifulSoup(resp.text, 'html.parser')
 
         # Title tag
@@ -214,7 +261,7 @@ def check_ai_bot_access(base_url):
         "Google-Extended": "google-extended",
     }
     try:
-        resp = requests.get(urljoin(base_url, '/robots.txt'), timeout=10)
+        resp = _http_get(urljoin(base_url, '/robots.txt'), timeout=10)
         if resp.status_code == 200:
             content = resp.text.lower()
             for display_name, bot_id in ai_bots.items():
@@ -270,7 +317,7 @@ def check_llms_txt(base_url):
     """Check for llms.txt presence (GEO best practice)."""
     try:
         domain = base_url.replace("https://", "").replace("http://", "").rstrip("/")
-        resp = requests.get(f"https://{domain}/llms.txt", timeout=10, allow_redirects=True)
+        resp = _http_get(f"https://{domain}/llms.txt", timeout=10, allow_redirects=True)
         if resp.status_code == 200 and len(resp.text.strip()) > 10:
             return {
                 "layer": "GEO", "severity": "Info", "area": "AI Guidance",
@@ -306,7 +353,10 @@ def check_schema_and_content_structure(base_url):
     aeo_findings = []
     geo_findings = []
     try:
-        resp = requests.get(base_url, timeout=15, allow_redirects=True)
+        resp = _http_get(base_url, timeout=15, allow_redirects=True)
+        if _looks_like_bot_gate(resp.status_code, resp.text):
+            raise RuntimeError(f"Homepage returned a blocked/challenge response (HTTP {resp.status_code})")
+        resp.raise_for_status()
         soup = BeautifulSoup(resp.text, 'html.parser')
 
         # Extract all schema types

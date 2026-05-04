@@ -83,6 +83,17 @@ def _artifact_validation_issues(output_dir: str) -> List[str]:
     scorecard = audit.get("scorecard", {}) or {}
     if not scorecard or scorecard.get("overall_score") in (None, "", 0, "0"):
         issues.append("audit_findings.json is incomplete or missing scorecard data.")
+    layer_scores = [int(scorecard.get(key, 0) or 0) for key in ("seo_score", "aeo_score", "geo_score")]
+    if layer_scores.count(0) == 3:
+        issues.append("audit_findings.json contains all-zero SEO/AEO/GEO scores; technical audit likely failed in deployment.")
+    error_findings = sum(
+        1
+        for bucket in ("seo_findings", "aeo_findings", "geo_findings")
+        for finding in (audit.get(bucket, []) or [])
+        if str((finding or {}).get("current_status", "")).upper() == "ERROR"
+    )
+    if error_findings >= 2:
+        issues.append("audit_findings.json contains transport/access errors from the technical audit.")
 
     if not os.path.exists(screenshot_path) or os.path.getsize(screenshot_path) == 0:
         issues.append("homepage_screenshot.png is missing; CRO screenshot capture failed.")
@@ -259,6 +270,15 @@ def phase_3_technical_audit(state: AuditState):
         add_findings(geo_findings, g_res)
         
         scores = calculate_integrated_scores(seo_findings, aeo_findings, geo_findings)
+        error_findings = [
+            f for f in (seo_findings + aeo_findings + geo_findings)
+            if str((f or {}).get("current_status", "")).upper() == "ERROR"
+        ]
+        if len(error_findings) >= 2 or all(int(scores.get(key, 0) or 0) == 0 for key in ("seo_score", "aeo_score", "geo_score")):
+            raise ValueError(
+                "Technical audit could not retrieve reliable live-site signals. "
+                "Detected transport/blocking errors or an all-zero scorecard."
+            )
         
         audit = {
             "seo_findings": seo_findings,
