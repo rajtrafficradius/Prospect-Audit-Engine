@@ -5,6 +5,7 @@ WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 # Install system dependencies including Node.js 20.x
 RUN apt-get update && apt-get install -y \
@@ -29,9 +30,8 @@ COPY package*.json ./
 RUN pip install --no-cache-dir -r requirements.txt \
     && npm install
 
-# Install Playwright browsers & system dependencies for Chromium
-RUN npx playwright install chromium \
-    && npx playwright install-deps chromium
+# Install Playwright browser revision that matches the Python Playwright package
+RUN python -m playwright install --with-deps chromium
 
 # Copy the rest of the application
 COPY . .
