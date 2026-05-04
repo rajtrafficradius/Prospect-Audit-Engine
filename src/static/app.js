@@ -172,6 +172,69 @@ const collectDeliverables = (statusData, jobId) => {
   return deliverables;
 };
 
+const OverviewSpark = ({ variant = 'default' }) => {
+  const seriesMap = {
+    rise: [18, 28, 22, 44, 31, 56, 42, 71],
+    steady: [20, 26, 40, 33, 52, 36, 58, 76],
+    shipped: [16, 27, 39, 32, 54, 35, 56, 82],
+    default: [18, 24, 30, 38, 46, 52, 60, 74],
+  };
+  const bars = seriesMap[variant] || seriesMap.default;
+  return (
+    <div className={`overview-spark overview-spark-${variant}`}>
+      {bars.map((height, index) => (
+        <span key={`${variant}-${index}`} style={{ height: `${height}%` }} />
+      ))}
+    </div>
+  );
+};
+
+const OverviewMetricCard = ({
+  icon,
+  label,
+  value,
+  unit,
+  trendText,
+  trendState,
+  metaText,
+  secondaryMeta,
+  sparkVariant = 'default',
+  showMeter = false,
+  meterWidth = 0,
+}) => (
+  <div className="kpi overview-kpi-card">
+    <div className="overview-kpi-shell">
+      <div className="overview-kpi-top">
+        <div className="overview-kpi-icon-badge">
+          <Icon name={icon} size={24} />
+        </div>
+        <div className="overview-kpi-heading">
+          <div className="kpi-label">{label}</div>
+          <div className="kpi-value">
+            {value}
+            {unit ? <span className="unit">{unit}</span> : null}
+          </div>
+        </div>
+        <div className="overview-kpi-graph">
+          <OverviewSpark variant={sparkVariant} />
+        </div>
+      </div>
+      <div className="kpi-meta overview-kpi-meta">
+        {trendText ? <span className={`kpi-trend ${trendState}`}>{trendText}</span> : null}
+        {metaText ? <span>{metaText}</span> : null}
+        {secondaryMeta ? <span>{secondaryMeta}</span> : null}
+      </div>
+      {showMeter ? (
+        <div className="overview-kpi-meter-row">
+          <div className="kpi-meter overview-kpi-meter">
+            <span style={{ width: `${meterWidth}%` }} />
+          </div>
+        </div>
+      ) : null}
+    </div>
+  </div>
+);
+
 const archiveDownloadHref = (item, type) => `/api/download/${item.archive_id || item.timestamp}/${type}`;
 
 const defaultNodeState = () =>
@@ -503,13 +566,13 @@ const Dashboard = ({ history, currentRun, setRoute }) => {
   const avgRunTime = recent.length ? '3:42' : '0:00';
   const semrushUnits = Math.max(42000, total * 3280);
   const shipped = completed * 3;
+  const semrushPercent = Math.min(99, Math.round((semrushUnits / 1000000) * 100));
   const streamLabel = currentRun?.status === 'running' ? 'AGENT STREAM' : 'LAST RUN';
   const streamCopy = currentRun?.status === 'running'
     ? `${activeCompany} analyzed ${activeDomain}`
     : recent[0]
       ? `${recent[0].company || 'Recent audit'} completed ${formatArchiveDate(recent[0])}`
       : 'Awaiting first audit launch';
-  const streamMeta = `${semrushUnits.toLocaleString()} tok`;
 
   return (
     <div className="page fade-in page-overview">
@@ -536,59 +599,62 @@ const Dashboard = ({ history, currentRun, setRoute }) => {
       </div>
 
       <div className="overview-stream">
-        <div className="overview-stream-pill">
-          <span className="overview-stream-dot" />
-          {streamLabel}
+        <div className="overview-stream-leading">
+          <div className="overview-stream-icon">
+            <Icon name="activity" size={22} />
+          </div>
+          <div className="overview-stream-content">
+            <div className="overview-stream-pill">
+              <span className="overview-stream-dot" />
+              {streamLabel}
+            </div>
+            <div className="overview-stream-copy">{streamCopy}</div>
+          </div>
         </div>
-        <div className="overview-stream-copy">{streamCopy}</div>
-        <div className="overview-stream-meta">{streamMeta}</div>
       </div>
 
       <div className="kpi-grid overview-kpi-grid">
-        <div className="kpi overview-kpi-card">
-          <div className="kpi-label">
-            <Icon name="archive" size={11} /> AUDITS · 7-DAY
-          </div>
-          <div className="kpi-value">{total || 0}<span className="unit">runs</span></div>
-          <div className="kpi-meta">
-            <span className={`kpi-trend ${completed >= failed ? 'up' : 'down'}`}>{completed >= failed ? '+' : '-'} {completed} complete</span>
-            <span>vs prior week</span>
-          </div>
-          <div className="kpi-spark"><span className="kpi-spark-line alt" /></div>
-        </div>
-        <div className="kpi overview-kpi-card">
-          <div className="kpi-label">
-            <Icon name="clock" size={11} /> AVG RUN TIME
-          </div>
-          <div className="kpi-value">{avgRunTime}<span className="unit">min</span></div>
-          <div className="kpi-meta">
-            <span className={`kpi-trend ${currentRun?.status === 'running' ? 'down' : 'up'}`}>{currentRun?.status === 'running' ? '-' : '+'} {Math.max(6, successRate - 12)}%</span>
-            <span>{currentRun?.status === 'running' ? 'Engine pre-warmed' : 'Ready to launch'}</span>
-          </div>
-          <div className="kpi-spark"><span className="kpi-spark-line" /></div>
-        </div>
-        <div className="kpi overview-kpi-card">
-          <div className="kpi-label">
-            <Icon name="bar" size={11} /> SEMRUSH UNITS
-          </div>
-          <div className="kpi-value">{Math.round(semrushUnits / 1000)}k<span className="unit">/ 1.0M</span></div>
-          <div className="kpi-meta">
-            <span>{Math.min(99, Math.round((semrushUnits / 1000000) * 100))}% used</span>
-            <span>resets in 18 days</span>
-          </div>
-          <div className="kpi-meter"><span style={{ width: `${Math.min(100, Math.round((semrushUnits / 1000000) * 100))}%` }} /></div>
-        </div>
-        <div className="kpi overview-kpi-card">
-          <div className="kpi-label">
-            <Icon name="package" size={11} /> DELIVERABLES SHIPPED
-          </div>
-          <div className="kpi-value">{shipped || 0}</div>
-          <div className="kpi-meta">
-            <span>DOCX {completed}</span>
-            <span>XLSX {completed}</span>
-            <span>PPTX {completed}</span>
-          </div>
-        </div>
+        <OverviewMetricCard
+          icon="archive"
+          label="AUDITS · 7-DAY"
+          value={total || 0}
+          unit="runs"
+          trendText={`${completed >= failed ? '+' : '-'} ${completed} complete`}
+          trendState={completed >= failed ? 'up' : 'down'}
+          metaText="vs prior week"
+          sparkVariant="rise"
+        />
+        <OverviewMetricCard
+          icon="clock"
+          label="AVG RUN TIME"
+          value={avgRunTime}
+          unit="min"
+          trendText={`${currentRun?.status === 'running' ? '-' : '+'} ${Math.max(6, successRate - 12)}%`}
+          trendState={currentRun?.status === 'running' ? 'down' : 'up'}
+          metaText={currentRun?.status === 'running' ? 'Engine pre-warmed' : 'Ready to launch'}
+          sparkVariant="steady"
+        />
+        <OverviewMetricCard
+          icon="bar"
+          label="SEMRUSH UNITS"
+          value={`${Math.round(semrushUnits / 1000)}k`}
+          unit="/ 1.0M"
+          metaText={`${semrushPercent}% used`}
+          secondaryMeta="resets in 18 days"
+          sparkVariant="rise"
+          showMeter
+          meterWidth={semrushPercent}
+        />
+        <OverviewMetricCard
+          icon="package"
+          label="DELIVERABLES SHIPPED"
+          value={shipped || 0}
+          trendText={`DOCX ${completed}`}
+          trendState="up"
+          metaText={`XLSX ${completed}`}
+          secondaryMeta={`PPTX ${completed}`}
+          sparkVariant="shipped"
+        />
       </div>
 
       <div className="grid-2 overview-grid">
