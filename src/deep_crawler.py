@@ -10,7 +10,10 @@ import numpy as np
 import tiktoken
 from openai import AsyncOpenAI, OpenAI
 from dotenv import load_dotenv
-from usage_tracker import record_openai_usage
+try:
+    from .usage_tracker import record_openai_usage
+except ImportError:  # pragma: no cover - direct script fallback
+    from usage_tracker import record_openai_usage
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"), override=False)
 

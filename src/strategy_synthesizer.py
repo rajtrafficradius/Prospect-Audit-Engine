@@ -4,7 +4,10 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 from openai import OpenAI
 from dotenv import load_dotenv
-from usage_tracker import record_openai_usage
+try:
+    from .usage_tracker import record_openai_usage
+except ImportError:  # pragma: no cover - direct script fallback
+    from usage_tracker import record_openai_usage
 
 class QualityWin(BaseModel):
     title: str = Field(description="The title of the quick win.")

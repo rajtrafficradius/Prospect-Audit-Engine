@@ -6,7 +6,10 @@ from typing import List, Dict, Any
 
 from openai import OpenAI
 from pydantic import BaseModel, ConfigDict, Field
-from usage_tracker import record_openai_usage
+try:
+    from .usage_tracker import record_openai_usage
+except ImportError:  # pragma: no cover - direct script fallback
+    from usage_tracker import record_openai_usage
 
 
 class SemrushAPIError(Exception):

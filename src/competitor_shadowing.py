@@ -6,7 +6,10 @@ from typing import List
 from openai import OpenAI
 from playwright.async_api import async_playwright
 from dotenv import load_dotenv
-from usage_tracker import record_openai_usage
+try:
+    from .usage_tracker import record_openai_usage
+except ImportError:  # pragma: no cover - direct script fallback
+    from usage_tracker import record_openai_usage
 
 class GapFinding(BaseModel):
     competitor: str = Field(description="The specific competitor domain.")

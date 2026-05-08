@@ -3,7 +3,10 @@ import json
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from openai import OpenAI
-from usage_tracker import record_openai_usage
+try:
+    from .usage_tracker import record_openai_usage
+except ImportError:  # pragma: no cover - direct script fallback
+    from usage_tracker import record_openai_usage
 
 # ---------------------------------------------------------
 # Define the Pydantic Schema that mirrors business_analysis.json

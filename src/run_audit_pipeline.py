@@ -5,9 +5,14 @@ import json
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
-from scraper import run_scraper
-from llm_extractor import extract_business_info
-from semrush_client import gather_market_intelligence
+try:
+    from .scraper import run_scraper
+    from .llm_extractor import extract_business_info
+    from .semrush_client import gather_market_intelligence
+except ImportError:  # pragma: no cover - direct script fallback
+    from scraper import run_scraper
+    from llm_extractor import extract_business_info
+    from semrush_client import gather_market_intelligence
 # We can import existing scripts iteratively
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'scripts'))
 
@@ -44,7 +49,10 @@ def run_pipeline(prospect_domain: str, prospect_name: str, database: str = "us")
     # ---------------------------------------------------------
     print("\n>>> Phase 1.5: Executing Multimodal Vision Assessment...")
     try:
-        from vision_cro_agent import analyze_homepage_ui
+        try:
+            from .vision_cro_agent import analyze_homepage_ui
+        except ImportError:  # pragma: no cover - direct script fallback
+            from vision_cro_agent import analyze_homepage_ui
         screenshot_path = os.path.join(OUTPUT_DIR, "homepage_screenshot.png")
         cro_assessment = analyze_homepage_ui(screenshot_path)
         cro_path = os.path.join(OUTPUT_DIR, "cro_assessment.json")
@@ -79,7 +87,10 @@ def run_pipeline(prospect_domain: str, prospect_name: str, database: str = "us")
     # ---------------------------------------------------------
     print("\n>>> Phase 2.5: Shadowing Top Competitors for Gap Analysis...")
     try:
-        from competitor_shadowing import run_competitor_shadowing
+        try:
+            from .competitor_shadowing import run_competitor_shadowing
+        except ImportError:  # pragma: no cover - direct script fallback
+            from competitor_shadowing import run_competitor_shadowing
         prospect_text = scraped_data[0].get("content", "") if scraped_data else ""
         shadowing_report = run_competitor_shadowing(prospect_text, market_intelligence)
         shadow_path = os.path.join(OUTPUT_DIR, "competitor_shadowing.json")
@@ -132,7 +143,10 @@ def run_pipeline(prospect_domain: str, prospect_name: str, database: str = "us")
     print("\n>>> Phase 4: Building Deep RAG Knowledge Base (Crawling & Vectorizing)...")
     rag = None
     try:
-        from deep_crawler import DeepCrawlerRAG
+        try:
+            from .deep_crawler import DeepCrawlerRAG
+        except ImportError:  # pragma: no cover - direct script fallback
+            from deep_crawler import DeepCrawlerRAG
         import asyncio
         rag = DeepCrawlerRAG(prospect_domain, OUTPUT_DIR, max_pages=50) # limited to 50 for speed
         asyncio.run(rag.build_index())
@@ -144,7 +158,10 @@ def run_pipeline(prospect_domain: str, prospect_name: str, database: str = "us")
     # ---------------------------------------------------------
     print("\n>>> Phase 5: Synthesizing AI Narrative (via GPT-4o & RAG)...")
     try:
-        from strategy_synthesizer import synthesize_strategy
+        try:
+            from .strategy_synthesizer import synthesize_strategy
+        except ImportError:  # pragma: no cover - direct script fallback
+            from strategy_synthesizer import synthesize_strategy
         strategy_narrative = synthesize_strategy(business_analysis, market_intelligence, audit_findings, rag)
         narrative_path = os.path.join(OUTPUT_DIR, "strategy_narrative.json")
         with open(narrative_path, "w") as f:

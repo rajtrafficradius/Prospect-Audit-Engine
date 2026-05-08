@@ -5,7 +5,10 @@ from pydantic import BaseModel, Field
 from typing import List
 from openai import OpenAI
 from dotenv import load_dotenv
-from usage_tracker import record_openai_usage
+try:
+    from .usage_tracker import record_openai_usage
+except ImportError:  # pragma: no cover - direct script fallback
+    from usage_tracker import record_openai_usage
 
 class CroFinding(BaseModel):
     area: str = Field(description="The UI/UX element being critiqued (e.g., 'Primary CTA', 'Trust Signals', 'Lead Capture Form', 'Above-the-Fold Value Proposition').")

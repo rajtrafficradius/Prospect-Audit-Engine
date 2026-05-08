@@ -6,13 +6,26 @@ from typing import TypedDict, List, Optional, Any, Dict, Union
 from langgraph.graph import StateGraph, START, END
 
 # Import the existing rigid pipeline phases
-from scraper import run_scraper
-from llm_extractor import extract_business_info
-from vision_cro_agent import analyze_homepage_ui
-from semrush_client import gather_market_intelligence, SemrushAPIError, generate_semrush_style_fallback
-from intelligence_refinement import refine_intelligence
-from competitor_shadowing import run_competitor_shadowing, build_competitor_shadow_fallback
-from usage_tracker import get_usage_summary
+try:
+    from .scraper import run_scraper
+    from .llm_extractor import extract_business_info
+    from .vision_cro_agent import analyze_homepage_ui
+    from .semrush_client import gather_market_intelligence, SemrushAPIError, generate_semrush_style_fallback
+    from .intelligence_refinement import refine_intelligence
+    from .competitor_shadowing import run_competitor_shadowing, build_competitor_shadow_fallback
+    from .usage_tracker import get_usage_summary
+    from .deep_crawler import DeepCrawlerRAG
+    from .strategy_synthesizer import synthesize_strategy
+except ImportError:  # pragma: no cover - direct script fallback
+    from scraper import run_scraper
+    from llm_extractor import extract_business_info
+    from vision_cro_agent import analyze_homepage_ui
+    from semrush_client import gather_market_intelligence, SemrushAPIError, generate_semrush_style_fallback
+    from intelligence_refinement import refine_intelligence
+    from competitor_shadowing import run_competitor_shadowing, build_competitor_shadow_fallback
+    from usage_tracker import get_usage_summary
+    from deep_crawler import DeepCrawlerRAG
+    from strategy_synthesizer import synthesize_strategy
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "scripts"))
 from technical_cro_audit import (
@@ -24,8 +37,6 @@ from technical_cro_audit import (
     check_schema_and_content_structure, 
     calculate_integrated_scores
 )
-from deep_crawler import DeepCrawlerRAG
-from strategy_synthesizer import synthesize_strategy
 
 class AuditState(TypedDict):
     """The central state dictionary bridging everything together."""
@@ -587,7 +598,10 @@ def _looks_like_domain(value: str) -> bool:
 
 def _enrich_competitor_entry(domain: str, database: str) -> Dict[str, Union[str, int]]:
     try:
-        from semrush_client import SemrushClient
+        try:
+            from .semrush_client import SemrushClient
+        except ImportError:  # pragma: no cover - direct script fallback
+            from semrush_client import SemrushClient
         client = SemrushClient()
         ranks = client.get_domain_ranks(domain, database)
         backlinks = client.get_backlinks_overview(domain)

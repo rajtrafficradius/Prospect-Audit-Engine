@@ -3,7 +3,10 @@ import json
 from typing import List, Optional
 from openai import OpenAI
 from pydantic import BaseModel, Field
-from usage_tracker import record_openai_usage
+try:
+    from .usage_tracker import record_openai_usage
+except ImportError:  # pragma: no cover - direct script fallback
+    from usage_tracker import record_openai_usage
 
 class RefinementResult(BaseModel):
     relevant_keywords: List[str] = Field(description="Keywords that are strictly relevant to the commercial core of the business.")
