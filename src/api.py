@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, Streamin
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from semrush_client import SemrushClient, SemrushAPIError
+from .semrush_client import SemrushClient, SemrushAPIError
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"), override=False)
 key = os.environ.get("OPENAI_API_KEY", "")
