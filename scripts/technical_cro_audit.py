@@ -33,21 +33,48 @@ REQUEST_HEADERS = {
     "Pragma": "no-cache",
 }
 requests.packages.urllib3.disable_warnings()
+SITE_PROTECTION_WARNING = "Cloudflare/site protection blocked automated access"
+PROTECTION_TOKENS = [
+    "checking your browser",
+    "enable javascript",
+    "enable cookies",
+    "captcha",
+    "attention required",
+    "access denied",
+    "cloudflare",
+    "verify you are human",
+    "security check",
+]
+
+
+class AutomatedAccessLimitedError(RuntimeError):
+    """Raised when site protection prevents reliable automated access."""
+    pass
 
 
 def _looks_like_bot_gate(status_code, body_text):
     preview = (body_text or "")[:1500].lower()
-    return status_code in {401, 403, 406, 429, 503} or any(
-        token in preview for token in [
-            "checking your browser",
-            "enable javascript",
-            "enable cookies",
-            "captcha",
-            "attention required",
-            "access denied",
-            "cloudflare",
-        ]
-    )
+    return status_code in {401, 403, 406, 429, 503} or any(token in preview for token in PROTECTION_TOKENS)
+
+
+def _is_protection_exception(exc):
+    preview = str(exc or "").lower()
+    return any(token in preview for token in PROTECTION_TOKENS)
+
+
+def _limited_finding(layer, area, title, recommendation, details=""):
+    description = SITE_PROTECTION_WARNING
+    if details:
+        description = f"{description}. {details}"
+    return {
+        "layer": layer,
+        "severity": "Medium",
+        "area": area,
+        "title": title,
+        "description": description,
+        "recommendation": recommendation,
+        "current_status": "LIMITED",
+    }
 
 
 def _http_get(url, timeout=15, allow_redirects=True):
@@ -61,7 +88,11 @@ def _http_get(url, timeout=15, allow_redirects=True):
                 headers=REQUEST_HEADERS,
                 verify=(attempt == 0),
             )
+            if _looks_like_bot_gate(resp.status_code, resp.text):
+                raise AutomatedAccessLimitedError(f"{SITE_PROTECTION_WARNING} for {url} (HTTP {resp.status_code})")
             return resp
+        except AutomatedAccessLimitedError:
+            raise
         except requests.exceptions.SSLError as e:
             last_error = e
         except Exception as e:
@@ -95,7 +126,7 @@ audit_findings = {
 #     "title": "...",
 #     "description": "...",
 #     "recommendation": "...",
-#     "current_status": "PASS" | "FAIL" | "WARNING" | "Missing" | "Present",
+#     "current_status": "PASS" | "FAIL" | "WARNING" | "Missing" | "Present" | "LIMITED",
 # }
 
 
@@ -135,6 +166,14 @@ def check_robots_txt(base_url):
                 "recommendation": "Create a robots.txt with appropriate directives and sitemap reference.",
                 "current_status": "Missing"
             }
+    except AutomatedAccessLimitedError as e:
+        return _limited_finding(
+            "SEO",
+            "Indexability",
+            "robots.txt could not be verified due to site protection",
+            "If possible, review robots.txt manually or rerun the audit from an approved environment.",
+            str(e),
+        )
     except Exception as e:
         return {
             "layer": "SEO", "severity": "Medium", "area": "Indexability",
@@ -165,6 +204,14 @@ def check_sitemap(base_url):
                 "recommendation": "Create and submit an XML sitemap.",
                 "current_status": "FAIL"
             }
+    except AutomatedAccessLimitedError as e:
+        return _limited_finding(
+            "SEO",
+            "Indexability",
+            "XML sitemap could not be verified due to site protection",
+            "Review sitemap accessibility manually or rerun the audit from an approved environment.",
+            str(e),
+        )
     except Exception as e:
         return {
             "layer": "SEO", "severity": "High", "area": "Indexability",
@@ -180,8 +227,6 @@ def check_homepage_seo(base_url):
     findings = []
     try:
         resp = _http_get(base_url, timeout=15, allow_redirects=True)
-        if _looks_like_bot_gate(resp.status_code, resp.text):
-            raise RuntimeError(f"Homepage returned a blocked/challenge response (HTTP {resp.status_code})")
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, 'html.parser')
 
@@ -236,6 +281,14 @@ def check_homepage_seo(base_url):
                 "current_status": "FAIL"
             })
 
+    except AutomatedAccessLimitedError as e:
+        findings.append(_limited_finding(
+            "SEO",
+            "Live Homepage Signals",
+            "Homepage live SEO signals were limited by site protection",
+            "Use available crawl, market, and content findings for this run, then manually verify title/H1/meta details if needed.",
+            str(e),
+        ))
     except Exception as e:
         findings.append({
             "layer": "SEO", "severity": "Critical", "area": "Accessibility",
@@ -302,7 +355,15 @@ def check_ai_bot_access(base_url):
                         "recommendation": "No action needed.",
                         "current_status": "PASS"
                     })
-    except:
+    except AutomatedAccessLimitedError as e:
+        findings.append(_limited_finding(
+            "GEO",
+            "AI Bot Access",
+            "AI bot access could not be verified due to site protection",
+            "If this site intentionally protects robots.txt, manually verify AI bot directives outside the automated audit.",
+            str(e),
+        ))
+    except Exception:
         findings.append({
             "layer": "GEO", "severity": "Medium", "area": "AI Bot Access",
             "title": "Could not check AI bot access",
@@ -334,6 +395,14 @@ def check_llms_txt(base_url):
                 "recommendation": "Create an llms.txt file to help AI engines understand your site structure.",
                 "current_status": "Missing"
             }
+    except AutomatedAccessLimitedError as e:
+        return _limited_finding(
+            "GEO",
+            "AI Guidance",
+            "llms.txt could not be verified due to site protection",
+            "Review llms.txt accessibility manually if AI guidance is a priority for this property.",
+            str(e),
+        )
     except:
         return {
             "layer": "GEO", "severity": "Medium", "area": "AI Guidance",
@@ -354,8 +423,6 @@ def check_schema_and_content_structure(base_url):
     geo_findings = []
     try:
         resp = _http_get(base_url, timeout=15, allow_redirects=True)
-        if _looks_like_bot_gate(resp.status_code, resp.text):
-            raise RuntimeError(f"Homepage returned a blocked/challenge response (HTTP {resp.status_code})")
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, 'html.parser')
 
@@ -490,6 +557,21 @@ def check_schema_and_content_structure(base_url):
                 "current_status": "FAIL"
             })
 
+    except AutomatedAccessLimitedError as e:
+        aeo_findings.append(_limited_finding(
+            "AEO",
+            "Schema & Answer Structure",
+            "Answer-engine signals were limited by site protection",
+            "Preserve this section in the report, but treat schema/Q&A conclusions as limited for this run.",
+            str(e),
+        ))
+        geo_findings.append(_limited_finding(
+            "GEO",
+            "Entity Authority",
+            "Entity/schema signals were limited by site protection",
+            "Verify organization/author schema manually if this domain is protected by Cloudflare or similar tooling.",
+            str(e),
+        ))
     except Exception as e:
         aeo_findings.append({
             "layer": "AEO", "severity": "Medium", "area": "Schema",
@@ -511,10 +593,16 @@ def calculate_integrated_scores(seo_findings, aeo_findings, geo_findings):
     def score_layer(findings):
         if not findings:
             return 50
-        total = len(findings)
-        pass_count = sum(1 for f in findings if f.get("current_status") in ["PASS", "Info"])
-        fail_count = sum(1 for f in findings if f.get("current_status") == "FAIL")
-        critical_count = sum(1 for f in findings if f.get("severity") == "Critical" and f.get("current_status") == "FAIL")
+        evaluable = [
+            f for f in findings
+            if str((f or {}).get("current_status", "")).upper() not in {"LIMITED", "ERROR"}
+        ]
+        if not evaluable:
+            return 50
+        total = len(evaluable)
+        pass_count = sum(1 for f in evaluable if str(f.get("current_status", "")).upper() in ["PASS", "INFO", "PRESENT"])
+        fail_count = sum(1 for f in evaluable if str(f.get("current_status", "")).upper() == "FAIL")
+        critical_count = sum(1 for f in evaluable if f.get("severity") == "Critical" and str(f.get("current_status", "")).upper() == "FAIL")
         score = int((pass_count / max(total, 1)) * 100)
         score -= critical_count * 15
         score -= fail_count * 5

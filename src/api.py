@@ -11,7 +11,11 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, Streamin
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from .semrush_client import SemrushClient, SemrushAPIError
+try:
+    from .semrush_client import SemrushClient, SemrushAPIError
+except ImportError:  # pragma: no cover - direct script fallback
+    sys.path.insert(0, os.path.dirname(__file__))
+    from semrush_client import SemrushClient, SemrushAPIError
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"), override=False)
 key = os.environ.get("OPENAI_API_KEY", "")
@@ -632,4 +636,4 @@ if __name__ == "__main__":
     # Create static dir if not exists
     os.makedirs(STATIC_DIR, exist_ok=True)
     # Disable reload on Windows to prevent "Bad file descriptor" errors during background tasks
-    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=False)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)

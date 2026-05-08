@@ -589,6 +589,7 @@ def _chart_validation_issues(mi, audit):
     prospect = mi.get('prospect', {}) or {}
     scorecard = audit.get('scorecard', {}) or {}
     semrush_unavailable = str(((mi.get('availability', {}) or {}).get('semrush') or '')).lower() == 'unavailable'
+    technical_limited = str(((audit.get('availability', {}) or {}).get('technical') or '')).lower() == 'limited'
 
     if not semrush_unavailable:
         if not prospect:
@@ -604,7 +605,7 @@ def _chart_validation_issues(mi, audit):
     if not scorecard or scorecard.get('overall_score') in (None, '', 0, '0'):
         issues.append('Audit scorecard data is incomplete.')
     layer_scores = [int(scorecard.get(key, 0) or 0) for key in ('seo_score', 'aeo_score', 'geo_score')]
-    if layer_scores.count(0) == 3:
+    if not technical_limited and layer_scores.count(0) == 3:
         issues.append('Technical audit produced all-zero SEO/AEO/GEO scores.')
     error_findings = sum(
         1
@@ -612,7 +613,7 @@ def _chart_validation_issues(mi, audit):
         for finding in (audit.get(bucket, []) or [])
         if str((finding or {}).get('current_status', '')).upper() == 'ERROR'
     )
-    if error_findings >= 2:
+    if not technical_limited and error_findings >= 2:
         issues.append('Technical audit contains transport/access errors.')
     return issues
 

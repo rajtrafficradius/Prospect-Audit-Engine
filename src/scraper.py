@@ -3,6 +3,28 @@ import asyncio
 from playwright.async_api import async_playwright
 from urllib.parse import urljoin, urlparse
 
+SITE_PROTECTION_WARNING = "Cloudflare/site protection blocked automated access"
+PROTECTION_TOKENS = [
+    "checking your browser",
+    "enable cookies",
+    "enable javascript",
+    "verify you are human",
+    "attention required",
+    "access denied",
+    "cloudflare",
+    "captcha",
+]
+
+
+class SiteProtectionBlockedError(RuntimeError):
+    """Raised when automated browser access is challenged by site protection."""
+    pass
+
+
+def _looks_like_site_protection(text):
+    preview = (text or "")[:2000].lower()
+    return any(token in preview for token in PROTECTION_TOKENS)
+
 async def scrape_page(page, url, retry_count=2):
     """Scrapes the visible text from a given URL with stealth and Cloudflare-bypass logic."""
     for attempt in range(retry_count + 1):
@@ -16,9 +38,18 @@ async def scrape_page(page, url, retry_count=2):
             
             # Check for Cloudflare/Cookie gate text
             content_preview = await page.evaluate("() => document.body ? document.body.innerText.slice(0, 500) : ''")
-            if "checking your browser" in content_preview.lower() or "enable cookies" in content_preview.lower():
+            if _looks_like_site_protection(content_preview):
                 print(f" [!] Site blocked by security gate. Waiting longer...")
                 await page.wait_for_timeout(5000)
+                content_preview = await page.evaluate("() => document.body ? document.body.innerText.slice(0, 800) : ''")
+                if _looks_like_site_protection(content_preview):
+                    print(f" [!] {SITE_PROTECTION_WARNING} for {url}. Continuing with limited crawl data.")
+                    return {
+                        "url": url,
+                        "content": "",
+                        "access_limited": True,
+                        "warning": SITE_PROTECTION_WARNING,
+                    }
 
             # Extract text safely
             content = await page.evaluate("() => document.body ? document.body.innerText : ''")
@@ -28,6 +59,13 @@ async def scrape_page(page, url, retry_count=2):
             # Fallback for empty body/protected content
             print(f" [!] Shallow content for {url} ({len(content)} chars). Attempting raw HTML capture...")
             html_content = await page.content()
+            if _looks_like_site_protection(html_content):
+                return {
+                    "url": url,
+                    "content": "",
+                    "access_limited": True,
+                    "warning": SITE_PROTECTION_WARNING,
+                }
             return {"url": url, "content": html_content[:8000]} # Increase limit for raw HTML
             
         except Exception as e:
@@ -47,6 +85,12 @@ async def capture_homepage_screenshot(page, base_url, output_dir, retry_count=2)
         try:
             await page.goto(base_url, wait_until="load", timeout=45000)
             await page.wait_for_timeout(5000)
+            content_preview = await page.evaluate("() => document.body ? document.body.innerText.slice(0, 800) : ''")
+            if _looks_like_site_protection(content_preview):
+                await page.wait_for_timeout(5000)
+                content_preview = await page.evaluate("() => document.body ? document.body.innerText.slice(0, 1200) : ''")
+                if _looks_like_site_protection(content_preview):
+                    raise SiteProtectionBlockedError(f"{SITE_PROTECTION_WARNING} for {base_url}")
             await page.screenshot(path=screenshot_path, full_page=True)
             if not os.path.exists(screenshot_path) or os.path.getsize(screenshot_path) == 0:
                 raise RuntimeError(f"Screenshot file was not written correctly at {screenshot_path}")
@@ -95,7 +139,12 @@ async def scrape_website_core_pages(base_url, output_dir=None):
         print(f"Scraping Homepage (Stealth Mode): {base_url}")
         
         # Take screenshot for Vision Agent
-        await capture_homepage_screenshot(page, base_url, output_dir)
+        try:
+            await capture_homepage_screenshot(page, base_url, output_dir)
+        except SiteProtectionBlockedError as e:
+            print(f" [!] {e}. CRO screenshot phase will continue in limited mode.")
+        except Exception as e:
+            print(f" [!] Screenshot capture failed for {base_url}: {e}")
             
         home_data = await scrape_page(page, base_url)
         results.append(home_data)

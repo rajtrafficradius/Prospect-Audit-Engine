@@ -72,6 +72,113 @@ def _text_len(value: Any) -> int:
     return len(str(value or "").strip())
 
 
+def _is_site_protection_message(value: Any) -> bool:
+    preview = str(value or "").lower()
+    return any(
+        token in preview for token in [
+            "cloudflare",
+            "checking your browser",
+            "enable cookies",
+            "enable javascript",
+            "captcha",
+            "attention required",
+            "site protection blocked automated access",
+            "blocked automated access",
+            "verify you are human",
+        ]
+    )
+
+
+def _scrape_access_limited(scraped_pages: List[dict]) -> bool:
+    return any(bool((page or {}).get("access_limited")) for page in (scraped_pages or []))
+
+
+def _build_limited_cro_assessment(reason_text: str) -> dict:
+    warning = "Cloudflare/site protection blocked automated access"
+    return {
+        "findings": [
+            {
+                "area": "Homepage Visual Review",
+                "current_status": f"{warning}.",
+                "opportunity": "Keep the CRO section visible in the report, but treat the visual diagnosis as limited for this audit run.",
+            },
+            {
+                "area": "Primary CTA / Lead Capture",
+                "current_status": "Visual CTA and lead-capture elements could not be reliably inspected because the live homepage was challenged.",
+                "opportunity": "Use available content, technical, and strategy sections for this run, then manually verify CTA placement once direct access is available.",
+            },
+            {
+                "area": "Trust Signals / Above-the-Fold UX",
+                "current_status": "Trust cues and above-the-fold layout could not be confirmed from an authenticated screenshot in this environment.",
+                "opportunity": "Complete a manual CRO screenshot review later without removing this section from the final deliverables.",
+            },
+        ],
+        "availability": {
+            "visual_review": "limited",
+            "warning": warning,
+            "details": reason_text,
+        },
+        "warning": warning,
+    }
+
+
+def _build_limited_business_analysis(state: AuditState, reason_text: str) -> dict:
+    warning = "Cloudflare/site protection blocked automated access"
+    company_name = state.get("company_name") or state.get("domain") or "Prospect"
+    clean_domain = state.get("domain") or ""
+    return {
+        "company_name": company_name,
+        "domain": clean_domain,
+        "tagline": "",
+        "description": (
+            f"Live website content could not be fully analyzed during this run because {warning.lower()}. "
+            "This audit continues using available market intelligence, technical findings, crawl fragments, "
+            "and strategy best practices without treating the protection page as real site content."
+        ),
+        "business_type": "Other",
+        "industry": "Could not be fully verified in this automated run",
+        "target_audience": "Audience signals were limited because live crawl access was challenged during this audit run.",
+        "geographic_focus": state.get("target_country", ""),
+        "primary_services": [
+            "Live site service offering could not be fully verified in this automated run",
+            "Manual verification recommended once site protection is cleared",
+        ],
+        "money_pages": [],
+        "has_testimonials": False,
+        "has_contact_form": False,
+        "cta_text": "",
+        "entity_signals": {
+            "key_people": [],
+            "brand_name_variations": [company_name, clean_domain],
+            "nap_data": {"name": company_name, "address": "", "phone": "", "email": ""},
+            "has_about_page": False,
+            "industry_associations": [],
+            "competitor_blacklist_terms": [],
+        },
+        "aeo_geo_content": {
+            "has_faq_sections": False,
+            "has_how_to_guides": False,
+            "content_uses_lists_tables": False,
+            "content_answers_questions": False,
+        },
+        "seed_keywords": {
+            "seo_seeds": [company_name],
+            "aeo_seeds": [],
+            "geo_seeds": [],
+        },
+        "unique_selling_points": [],
+        "commercial_intent_focus": warning,
+        "negative_exclusion_criteria": [
+            "Do not treat Cloudflare or site-protection challenge pages as real website content."
+        ],
+        "availability": {
+            "content_extraction": "limited",
+            "warning": warning,
+            "details": reason_text,
+        },
+    }
+
+
 def _artifact_validation_issues(output_dir: str) -> List[str]:
     issues: List[str] = []
 
@@ -82,8 +189,9 @@ def _artifact_validation_issues(output_dir: str) -> List[str]:
     narrative = _safe_read_json(os.path.join(output_dir, "strategy_narrative.json"))
     shadow = _safe_read_json(os.path.join(output_dir, "competitor_shadowing.json"))
     screenshot_path = os.path.join(output_dir, "homepage_screenshot.png")
+    business_limited = str(((business.get("availability", {}) or {}).get("content_extraction") or "")).lower() == "limited"
 
-    if _text_len(business.get("description")) < 80 or len(business.get("primary_services", []) or []) < 2:
+    if not business_limited and (_text_len(business.get("description")) < 80 or len(business.get("primary_services", []) or []) < 2):
         issues.append("business_analysis.json is missing core business context.")
 
     prospect = market.get("prospect", {}) or {}
@@ -96,10 +204,11 @@ def _artifact_validation_issues(output_dir: str) -> List[str]:
             issues.append("market_intelligence.json is missing competitor coverage.")
 
     scorecard = audit.get("scorecard", {}) or {}
+    technical_limited = str(((audit.get("availability", {}) or {}).get("technical") or "")).lower() == "limited"
     if not scorecard or scorecard.get("overall_score") in (None, "", 0, "0"):
         issues.append("audit_findings.json is incomplete or missing scorecard data.")
     layer_scores = [int(scorecard.get(key, 0) or 0) for key in ("seo_score", "aeo_score", "geo_score")]
-    if layer_scores.count(0) == 3:
+    if not technical_limited and layer_scores.count(0) == 3:
         issues.append("audit_findings.json contains all-zero SEO/AEO/GEO scores; technical audit likely failed in deployment.")
     error_findings = sum(
         1
@@ -107,12 +216,13 @@ def _artifact_validation_issues(output_dir: str) -> List[str]:
         for finding in (audit.get(bucket, []) or [])
         if str((finding or {}).get("current_status", "")).upper() == "ERROR"
     )
-    if error_findings >= 2:
+    if not technical_limited and error_findings >= 2:
         issues.append("audit_findings.json contains transport/access errors from the technical audit.")
 
-    if not os.path.exists(screenshot_path) or os.path.getsize(screenshot_path) == 0:
+    cro_limited = str(((cro.get("availability", {}) or {}).get("visual_review") or "")).lower() == "limited"
+    if not cro_limited and (not os.path.exists(screenshot_path) or os.path.getsize(screenshot_path) == 0):
         issues.append("homepage_screenshot.png is missing; CRO screenshot capture failed.")
-    if len(cro.get("findings", []) or []) < 3:
+    if not cro_limited and len(cro.get("findings", []) or []) < 3:
         issues.append("cro_assessment.json is incomplete or missing CRO findings.")
 
     long_fields = [
@@ -218,6 +328,18 @@ def phase_1_extraction_and_vision(state: AuditState):
             else:
                 raise FileNotFoundError(f"Screenshot not found at {screenshot_path}.")
         except Exception as e:
+            limited_access = _scrape_access_limited(scraped) or _is_site_protection_message(e)
+            if limited_access:
+                warning_text = "Cloudflare/site protection blocked automated access"
+                print(f" [!] {warning_text}. Continuing with limited CRO assessment.")
+                cro = _build_limited_cro_assessment(str(e))
+                with open(os.path.join(state["output_dir"], "cro_assessment.json"), "w") as f:
+                    json.dump(cro, f, indent=2)
+                return {
+                    "scraped_data": scraped,
+                    "business_analysis": ba,
+                    "cro_assessment": cro,
+                }
             print(f" [!] Vision Error: {e}")
             return {
                 "scraped_data": scraped,
@@ -228,6 +350,20 @@ def phase_1_extraction_and_vision(state: AuditState):
             
     except Exception as e:
         print(f" [!] Extraction Phase Error: {e}")
+        if _scrape_access_limited(scraped) or _is_site_protection_message(e):
+            ba = _build_limited_business_analysis(state, str(e))
+            with open(os.path.join(state["output_dir"], "business_analysis.json"), "w") as f:
+                json.dump(ba, f, indent=2)
+            if not cro:
+                cro = _build_limited_cro_assessment(str(e))
+                with open(os.path.join(state["output_dir"], "cro_assessment.json"), "w") as f:
+                    json.dump(cro, f, indent=2)
+            print(" [!] Cloudflare/site protection blocked automated access. Continuing with limited content extraction.")
+            return {
+                "scraped_data": scraped,
+                "business_analysis": ba,
+                "cro_assessment": cro,
+            }
         if not ba:
             ba = {"company_name": state["company_name"], "domain": state["domain"], "seed_keywords": {"seo_seeds": [state["company_name"]]}}
         return {
@@ -238,6 +374,26 @@ def phase_1_extraction_and_vision(state: AuditState):
         }
 
     if not ba or _text_len(ba.get("description")) < 80 or len(ba.get("primary_services", []) or []) < 2:
+        if _scrape_access_limited(scraped):
+            ba = ba if ba else _build_limited_business_analysis(state, "Cloudflare/site protection blocked automated access during scraping.")
+            if "availability" not in ba:
+                ba["availability"] = {
+                    "content_extraction": "limited",
+                    "warning": "Cloudflare/site protection blocked automated access",
+                    "details": "Phase 1 returned partial crawl content only.",
+                }
+            with open(os.path.join(state["output_dir"], "business_analysis.json"), "w") as f:
+                json.dump(ba, f, indent=2)
+            if not cro:
+                cro = _build_limited_cro_assessment("Cloudflare/site protection blocked automated access during screenshot capture.")
+                with open(os.path.join(state["output_dir"], "cro_assessment.json"), "w") as f:
+                    json.dump(cro, f, indent=2)
+            print(" [!] Cloudflare/site protection blocked automated access. Proceeding with limited business analysis.")
+            return {
+                "scraped_data": scraped,
+                "business_analysis": ba,
+                "cro_assessment": cro,
+            }
         return {
             "scraped_data": scraped,
             "business_analysis": ba,
@@ -406,11 +562,15 @@ def phase_3_technical_audit(state: AuditState):
         add_findings(geo_findings, g_res)
         
         scores = calculate_integrated_scores(seo_findings, aeo_findings, geo_findings)
+        limited_findings = [
+            f for f in (seo_findings + aeo_findings + geo_findings)
+            if str((f or {}).get("current_status", "")).upper() == "LIMITED"
+        ]
         error_findings = [
             f for f in (seo_findings + aeo_findings + geo_findings)
             if str((f or {}).get("current_status", "")).upper() == "ERROR"
         ]
-        if len(error_findings) >= 2 or all(int(scores.get(key, 0) or 0) == 0 for key in ("seo_score", "aeo_score", "geo_score")):
+        if not limited_findings and (len(error_findings) >= 2 or all(int(scores.get(key, 0) or 0) == 0 for key in ("seo_score", "aeo_score", "geo_score"))):
             raise ValueError(
                 "Technical audit could not retrieve reliable live-site signals. "
                 "Detected transport/blocking errors or an all-zero scorecard."
@@ -420,8 +580,14 @@ def phase_3_technical_audit(state: AuditState):
             "seo_findings": seo_findings,
             "aeo_findings": aeo_findings,
             "geo_findings": geo_findings,
-            "scorecard": scores
+            "scorecard": scores,
+            "availability": {
+                "technical": "limited" if limited_findings else "available",
+                "warning": "Cloudflare/site protection blocked automated access" if limited_findings else "",
+            },
         }
+        if limited_findings:
+            print(" [!] Cloudflare/site protection blocked automated access. Technical audit will continue in limited mode.")
         
         with open(os.path.join(state["output_dir"], "audit_findings.json"), "w") as f:
             json.dump(audit, f, indent=2)

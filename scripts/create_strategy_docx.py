@@ -196,6 +196,8 @@ def _docx_validation_issues():
     issues = []
     prospect = market_data.get("prospect", {}) or {}
     scorecard = audit_data.get("scorecard", {}) or {}
+    technical_limited = str(((audit_data.get("availability", {}) or {}).get("technical") or "")).lower() == "limited"
+    cro_limited = str(((cro_data.get("availability", {}) or {}).get("visual_review") or "")).lower() == "limited"
 
     if not SEMRUSH_UNAVAILABLE:
         if not prospect:
@@ -212,7 +214,7 @@ def _docx_validation_issues():
     if not scorecard or scorecard.get("overall_score") in (None, "", 0, "0"):
         issues.append("Audit scorecard data is incomplete.")
     layer_scores = [int(scorecard.get(key, 0) or 0) for key in ("seo_score", "aeo_score", "geo_score")]
-    if layer_scores.count(0) == 3:
+    if not technical_limited and layer_scores.count(0) == 3:
         issues.append("Technical audit produced all-zero SEO/AEO/GEO scores.")
     error_findings = sum(
         1
@@ -220,16 +222,16 @@ def _docx_validation_issues():
         for finding in (audit_data.get(bucket, []) or [])
         if str((finding or {}).get("current_status", "")).upper() == "ERROR"
     )
-    if error_findings >= 2:
+    if not technical_limited and error_findings >= 2:
         issues.append("Technical audit contains transport/access errors.")
 
     if _text_len(narrative_data.get("executive_summary")) < 180:
         issues.append("Strategy narrative executive summary is incomplete.")
 
-    if len(cro_data.get("findings", []) or []) < 3:
+    if not cro_limited and len(cro_data.get("findings", []) or []) < 3:
         issues.append("CRO findings are incomplete.")
 
-    if not _candidate_homepage_screenshot():
+    if not cro_limited and not _candidate_homepage_screenshot():
         issues.append("Homepage screenshot is missing.")
 
     return issues
