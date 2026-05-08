@@ -81,6 +81,12 @@ try:
 except Exception:
     shadow_data = {}
 
+SEMRUSH_UNAVAILABLE = str(((market_data.get("availability", {}) or {}).get("semrush") or "")).lower() == "unavailable"
+SEMRUSH_WARNING = (
+    ((market_data.get("availability", {}) or {}).get("warning"))
+    or "Market intelligence data unavailable due to SEMrush API access issue"
+)
+
 # ── Brand Colors ──────────────────────────────────────────────
 NAVY = RGBColor(0x1B, 0x2A, 0x4A)
 BLUE = RGBColor(0x2E, 0x50, 0x90)
@@ -157,21 +163,51 @@ def _candidate_homepage_screenshot():
     return ""
 
 
+def _create_market_unavailable_dashboard(filename, title, subtitle=""):
+    out_path = os.path.join(CHARTS_DIR, filename)
+    os.makedirs(CHARTS_DIR, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(11.6, 5.9), dpi=220)
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
+    ax.axis("off")
+
+    panel = plt.matplotlib.patches.FancyBboxPatch(
+        (0.04, 0.16), 0.92, 0.70,
+        boxstyle='round,pad=0.02,rounding_size=0.03',
+        linewidth=1.2, edgecolor='#D6E0EA', facecolor='#FBFCFE',
+        transform=ax.transAxes,
+    )
+    ax.add_patch(panel)
+    ax.text(0.07, 0.80, title, fontsize=22, fontweight='bold', color='#1B2A4A', ha='left', va='center', transform=ax.transAxes)
+    if subtitle:
+        ax.text(0.07, 0.71, subtitle, fontsize=11.5, color='#657289', ha='left', va='center', transform=ax.transAxes)
+    ax.text(0.07, 0.54, SEMRUSH_WARNING, fontsize=15, fontweight='bold', color='#B45309',
+            ha='left', va='center', transform=ax.transAxes)
+    ax.text(0.07, 0.39, "This section is retained, but SEMrush metrics could not be verified for this run.",
+            fontsize=12, color='#4A5568', ha='left', va='center', transform=ax.transAxes)
+    ax.text(0.07, 0.26, "Crawl, technical, CRO, and narrative insights continue to use available audit data.",
+            fontsize=11, color='#718096', ha='left', va='center', transform=ax.transAxes)
+    fig.savefig(out_path, bbox_inches='tight', facecolor='white')
+    plt.close(fig)
+    return out_path
+
+
 def _docx_validation_issues():
     issues = []
     prospect = market_data.get("prospect", {}) or {}
     scorecard = audit_data.get("scorecard", {}) or {}
 
-    if not prospect:
-        issues.append("market_intelligence.json is missing prospect data.")
-    if int(prospect.get("organic_keywords", 0) or 0) <= 0:
-        issues.append("Organic keyword data is missing or zero.")
-    if int(prospect.get("organic_traffic", 0) or 0) <= 0:
-        issues.append("Organic traffic data is missing or zero.")
-    if int(prospect.get("organic_traffic_value", 0) or 0) <= 0:
-        issues.append("Traffic value data is missing or zero.")
-    if len(market_data.get("competitors", []) or []) < 2:
-        issues.append("Competitor market comparison data is incomplete.")
+    if not SEMRUSH_UNAVAILABLE:
+        if not prospect:
+            issues.append("market_intelligence.json is missing prospect data.")
+        if int(prospect.get("organic_keywords", 0) or 0) <= 0:
+            issues.append("Organic keyword data is missing or zero.")
+        if int(prospect.get("organic_traffic", 0) or 0) <= 0:
+            issues.append("Organic traffic data is missing or zero.")
+        if int(prospect.get("organic_traffic_value", 0) or 0) <= 0:
+            issues.append("Traffic value data is missing or zero.")
+        if len(market_data.get("competitors", []) or []) < 2:
+            issues.append("Competitor market comparison data is incomplete.")
 
     if not scorecard or scorecard.get("overall_score") in (None, "", 0, "0"):
         issues.append("Audit scorecard data is incomplete.")
@@ -453,13 +489,11 @@ def create_action_plan_roadmap_image(rows):
     draw.polygon([(x2, y), (x2 - 28, y - 18), (x2 - 28, y + 18)], fill=blue_rgb)
 
     centers = [360, 900, 1440]
-    day_labels = ["Days 1-30", "Days 31-60", "Days 61-90"]
 
     for idx, row in enumerate(rows[:3]):
         cx = centers[idx]
         draw.ellipse((cx - 30, y - 30, cx + 30, y + 30), fill=white_rgb, outline=sky_rgb, width=4)
         draw.ellipse((cx - 18, y - 18, cx + 18, y + 18), fill=blue_rgb)
-        draw.text((cx - 44, 250), day_labels[idx], font=small_font, fill=text_mid)
         draw.text((cx - 58, 370), f"Phase {idx + 1}", font=phase_font, fill=blue_rgb)
         draw.text((cx - 130, 408), row["phase"], font=label_font, fill=navy_rgb)
 
@@ -1003,6 +1037,13 @@ def build_integrated_layer_cards():
     return cards
 
 def build_opportunity_mix_cards():
+    if SEMRUSH_UNAVAILABLE:
+        return [
+            ("SEO Opportunity", "Unavailable", "SEMrush keyword and traffic metrics could not be verified for this run.", (46, 80, 144)),
+            ("AEO Opportunity", "Unavailable", "Question-intent opportunity sizing is paused until SEMrush access is restored.", (230, 126, 34)),
+            ("GEO Opportunity", "Unavailable", "Informational demand estimates were not available from SEMrush for this run.", (155, 89, 182)),
+            ("Primary Focus", "Available Data", "Use crawl, CRO, technical, and strategy findings while market metrics are unavailable.", (46, 125, 50)),
+        ]
     seo_label = "Transactional SEO" if market_data.get("prospect", {}).get("top_keywords") else "SEO Opportunity"
     aeo_label = "Question Intent" if market_data.get("aeo_indicators", {}).get("question_keywords_found", 0) else "AEO Opportunity"
     geo_label = "Informational Queries" if market_data.get("geo_indicators", {}).get("informational_keywords_found", 0) else "GEO Opportunity"
@@ -1023,6 +1064,12 @@ def build_opportunity_mix_cards():
     ]
 
 def create_value_gap_dashboard():
+    if SEMRUSH_UNAVAILABLE:
+        return _create_market_unavailable_dashboard(
+            "value_gap_dashboard.png",
+            f"{PROSPECT_NAME} — Value Proposition Gap Analysis",
+            "Competitor comparison metrics unavailable for this run.",
+        )
     out_path = os.path.join(CHARTS_DIR, "value_gap_dashboard.png")
     gaps = shadow_data.get("gaps", [])[:3]
     if not gaps:
@@ -1305,6 +1352,12 @@ def _clean_domain(value):
     return text.replace("https://", "").replace("http://", "").replace("www.", "").rstrip("/")
 
 def create_search_demand_dashboard():
+    if SEMRUSH_UNAVAILABLE:
+        return _create_market_unavailable_dashboard(
+            "search_demand_by_cluster.png",
+            f"{PROSPECT_NAME} — Total Addressable Search Demand",
+            "Keyword demand estimates require SEMrush market intelligence.",
+        )
     out_path = os.path.join(CHARTS_DIR, "search_demand_by_cluster.png")
     os.makedirs(CHARTS_DIR, exist_ok=True)
 
@@ -1370,6 +1423,12 @@ def create_search_demand_dashboard():
     return out_path
 
 def create_traffic_value_opportunity_dashboard():
+    if SEMRUSH_UNAVAILABLE:
+        return _create_market_unavailable_dashboard(
+            "traffic_value_opportunity.png",
+            f"{PROSPECT_NAME} — Estimated Monthly Traffic Value Opportunity",
+            "Traffic value opportunity metrics require SEMrush market intelligence.",
+        )
     out_path = os.path.join(CHARTS_DIR, "traffic_value_opportunity.png")
     os.makedirs(CHARTS_DIR, exist_ok=True)
 
@@ -1424,6 +1483,12 @@ def create_traffic_value_opportunity_dashboard():
     return out_path
 
 def create_competitive_landscape_dashboard():
+    if SEMRUSH_UNAVAILABLE:
+        return _create_market_unavailable_dashboard(
+            "competitive_landscape.png",
+            f"{PROSPECT_NAME} — Competitive Landscape Snapshot",
+            "Competitor traffic and keyword benchmarking require SEMrush access.",
+        )
     out_path = os.path.join(CHARTS_DIR, "competitive_landscape.png")
     os.makedirs(CHARTS_DIR, exist_ok=True)
 
@@ -1481,6 +1546,12 @@ def create_competitive_landscape_dashboard():
     return out_path
 
 def create_layer_distribution_dashboard():
+    if SEMRUSH_UNAVAILABLE:
+        return _create_market_unavailable_dashboard(
+            "layer_distribution.png",
+            f"{PROSPECT_NAME} — Opportunity Layer Distribution",
+            "Layer opportunity estimates require SEMrush market intelligence.",
+        )
     out_path = os.path.join(CHARTS_DIR, "layer_distribution.png")
     os.makedirs(CHARTS_DIR, exist_ok=True)
 
@@ -1533,6 +1604,12 @@ def create_layer_distribution_dashboard():
     return out_path
 
 def create_opportunity_matrix_dashboard():
+    if SEMRUSH_UNAVAILABLE:
+        return _create_market_unavailable_dashboard(
+            "opportunity_matrix.png",
+            f"{PROSPECT_NAME} — Opportunity Matrix",
+            "Matrix sizing requires SEMrush market and backlink data.",
+        )
     out_path = os.path.join(CHARTS_DIR, "opportunity_matrix.png")
     os.makedirs(CHARTS_DIR, exist_ok=True)
 
@@ -1726,6 +1803,13 @@ def _resolve_gap_entries(limit=3):
     return entries
 
 def create_value_gap_competitor_dashboard(domain, competitor, gap, index):
+    if SEMRUSH_UNAVAILABLE:
+        safe_name = re.sub(r"[^a-z0-9]+", "_", domain.lower()).strip("_") or f"competitor_{index}"
+        return _create_market_unavailable_dashboard(
+            f"value_gap_{index}_{safe_name}.png",
+            f"{domain} — Value Proposition Dashboard",
+            "Competitor benchmark metrics unavailable because SEMrush access was not available.",
+        )
     safe_name = re.sub(r"[^a-z0-9]+", "_", domain.lower()).strip("_") or f"competitor_{index}"
     filename = f"value_gap_{index}_{safe_name}.png"
     subtitle = (
@@ -2705,10 +2789,13 @@ add_body(
 
 add_heading_styled(doc, "4. Current Digital Performance", 1)
 
-add_body(doc,
-    f"The following metrics provide a data-driven baseline of {PROSPECT_NAME}'s current "
-    "organic search performance, sourced from SEMrush."
-)
+if SEMRUSH_UNAVAILABLE:
+    add_body(doc, f"{SEMRUSH_WARNING}. This baseline table is retained for structure, and unavailable SEMrush fields are shown as N/A.")
+else:
+    add_body(doc,
+        f"The following metrics provide a data-driven baseline of {PROSPECT_NAME}'s current "
+        "organic search performance, sourced from SEMrush."
+    )
 
 prospect_data = market_data.get("prospect", {})
 add_branded_table(doc,
@@ -2717,7 +2804,7 @@ add_branded_table(doc,
         ["Domain Authority Score", str(prospect_data.get("authority_score", "N/A"))],
         ["Organic Keywords", str(prospect_data.get("organic_keywords", "N/A"))],
         ["Monthly Organic Traffic", str(prospect_data.get("organic_traffic", "N/A"))],
-        ["Organic Traffic Value", f"${prospect_data.get('organic_traffic_value', '0')}"],
+        ["Organic Traffic Value", _format_money_display(prospect_data.get("organic_traffic_value", "N/A")) if not SEMRUSH_UNAVAILABLE else "N/A"],
         ["Backlinks", f"{prospect_data.get('backlinks', 'N/A'):,}" if isinstance(prospect_data.get('backlinks'), int) else prospect_data.get('backlinks', 'N/A')],
         ["Referring Domains", f"{prospect_data.get('referring_domains', 'N/A'):,}" if isinstance(prospect_data.get('referring_domains'), int) else prospect_data.get('referring_domains', 'N/A')],
     ]

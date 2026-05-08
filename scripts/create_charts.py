@@ -588,17 +588,19 @@ def _chart_validation_issues(mi, audit):
     issues = []
     prospect = mi.get('prospect', {}) or {}
     scorecard = audit.get('scorecard', {}) or {}
+    semrush_unavailable = str(((mi.get('availability', {}) or {}).get('semrush') or '')).lower() == 'unavailable'
 
-    if not prospect:
-        issues.append('market_intelligence.json is missing prospect data.')
-    if int(prospect.get('organic_keywords', 0) or 0) <= 0:
-        issues.append('Prospect organic keyword count is missing or zero.')
-    if int(prospect.get('organic_traffic', 0) or 0) <= 0:
-        issues.append('Prospect organic traffic is missing or zero.')
-    if int(prospect.get('organic_traffic_value', 0) or 0) <= 0:
-        issues.append('Prospect traffic value is missing or zero.')
-    if len(mi.get('competitors', []) or []) < 2:
-        issues.append('Competitor market data is incomplete.')
+    if not semrush_unavailable:
+        if not prospect:
+            issues.append('market_intelligence.json is missing prospect data.')
+        if int(prospect.get('organic_keywords', 0) or 0) <= 0:
+            issues.append('Prospect organic keyword count is missing or zero.')
+        if int(prospect.get('organic_traffic', 0) or 0) <= 0:
+            issues.append('Prospect organic traffic is missing or zero.')
+        if int(prospect.get('organic_traffic_value', 0) or 0) <= 0:
+            issues.append('Prospect traffic value is missing or zero.')
+        if len(mi.get('competitors', []) or []) < 2:
+            issues.append('Competitor market data is incomplete.')
     if not scorecard or scorecard.get('overall_score') in (None, '', 0, '0'):
         issues.append('Audit scorecard data is incomplete.')
     layer_scores = [int(scorecard.get(key, 0) or 0) for key in ('seo_score', 'aeo_score', 'geo_score')]
@@ -613,6 +615,32 @@ def _chart_validation_issues(mi, audit):
     if error_findings >= 2:
         issues.append('Technical audit contains transport/access errors.')
     return issues
+
+
+def _semrush_unavailable(mi):
+    return str(((mi.get('availability', {}) or {}).get('semrush') or '')).lower() == 'unavailable'
+
+
+def _create_unavailable_chart(filename, title, message):
+    fig, ax = plt.subplots(figsize=(12, 6), dpi=220)
+    fig.patch.set_facecolor(BG_WHITE)
+    ax.set_facecolor(BG_WHITE)
+    ax.axis('off')
+
+    outer = FancyBboxPatch((0.04, 0.16), 0.92, 0.70,
+                           boxstyle='round,pad=0.02,rounding_size=0.03',
+                           linewidth=1.2, edgecolor='#D6E0EA', facecolor='#FBFCFE')
+    ax.add_patch(outer)
+    ax.text(0.06, 0.84, title, fontsize=22, fontweight='bold', color=NAVY, ha='left', va='center')
+    ax.text(0.06, 0.63, "Market intelligence data unavailable due to SEMrush API access issue",
+            fontsize=16, fontweight='bold', color='#B45309', ha='left', va='center')
+    ax.text(0.06, 0.45, message, fontsize=12.5, color=MID_GREY, ha='left', va='center', wrap=True)
+    ax.text(0.06, 0.28, "The audit continues using crawl, technical, CRO, and available competitor context.",
+            fontsize=11.5, color=LIGHT_GREY, ha='left', va='center')
+
+    plt.savefig(os.path.join(OUTPUT_DIR, filename), dpi=CHART_EXPORT_DPI, bbox_inches='tight', facecolor=BG_WHITE)
+    plt.close(fig)
+    print(f'Chart saved: {filename}')
 
 
 if __name__ == '__main__':
@@ -633,6 +661,23 @@ if __name__ == '__main__':
     validation_issues = _chart_validation_issues(mi, audit)
     if validation_issues:
         raise ValueError("Cannot build charts from incomplete audit data: " + " | ".join(validation_issues))
+
+    if _semrush_unavailable(mi):
+        warning_text = ((mi.get('availability', {}) or {}).get('warning')
+                        or 'SEMrush data could not be retrieved for this audit run.')
+        _create_unavailable_chart('search_demand_by_cluster.png', f'{PROSPECT_NAME} - Search Demand Overview', warning_text)
+        _create_unavailable_chart('competitive_landscape.png', f'{PROSPECT_NAME} - Competitive Landscape Snapshot', warning_text)
+        _create_unavailable_chart('opportunity_matrix.png', f'{PROSPECT_NAME} - Opportunity Matrix', warning_text)
+        _create_unavailable_chart('traffic_value_opportunity.png', f'{PROSPECT_NAME} - Traffic Value Opportunity', warning_text)
+        _create_unavailable_chart('layer_distribution.png', f'{PROSPECT_NAME} - Opportunity Layer Distribution', warning_text)
+        _create_unavailable_chart('three_layer_overview.png', f'{PROSPECT_NAME} - Search Visibility Snapshot', warning_text)
+
+        real_scores = audit.get('scorecard', {
+            'seo_score': 0, 'aeo_score': 0, 'geo_score': 0, 'cro_score': 0, 'overall_score': 0
+        })
+        create_integrated_scorecard(real_scores, renderer='plotly')
+        create_before_after_chart(real_scores, renderer='plotly')
+        raise SystemExit(0)
 
     real_competitors = [
         {

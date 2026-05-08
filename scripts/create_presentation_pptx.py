@@ -974,10 +974,31 @@ def _slide2_kpi_panel_bottom():
 
 
 def _add_slide2_metric_cards(slide, metrics):
+    semrush_unavailable = bool(metrics.get("semrush_unavailable"))
+    def _coerce_number(raw):
+        try:
+            if raw in (None, ""):
+                return None
+            return float(raw)
+        except Exception:
+            return None
+
     labels = [
-        ("Organic Traffic", int(float(metrics.get("organic_traffic", 0) or 0)), "Current organic baseline"),
-        ("Authority Score", int(float(metrics.get("authority_score", 0) or 0)), "Domain strength indicator"),
-        ("Market Value", int(float(metrics.get("market_value", 0) or 0)), "Estimated traffic value"),
+        (
+            "Organic Traffic",
+            metrics.get("organic_traffic"),
+            "SEMrush unavailable for this run" if semrush_unavailable else "Current organic baseline",
+        ),
+        (
+            "Authority Score",
+            metrics.get("authority_score"),
+            "SEMrush unavailable for this run" if semrush_unavailable else "Domain strength indicator",
+        ),
+        (
+            "Market Value",
+            metrics.get("market_value"),
+            "SEMrush unavailable for this run" if semrush_unavailable else "Estimated traffic value",
+        ),
     ]
 
     card_top = CHART_Y + Cm(0.56)
@@ -987,7 +1008,8 @@ def _add_slide2_metric_cards(slide, metrics):
     start_left = CHART_X + Cm(0.47)
     accents = [ACCENT, ACCENT_DARK, ACCENT_2]
 
-    max_value = max(v for _, v, _ in labels) or 1
+    numeric_values = [val for _, v, _ in labels if (val := _coerce_number(v)) is not None]
+    max_value = max(numeric_values) if numeric_values else 1
     for idx, (label, value, note) in enumerate(labels):
         left = start_left + idx * (card_w + gap)
         _add_soft_panel(slide, left, card_top, card_w, card_h)
@@ -999,15 +1021,20 @@ def _add_slide2_metric_cards(slide, metrics):
 
         _add_icon_badge(slide, left + Cm(0.56), card_top + Cm(0.76), _icon_kind(label), size_cm=1.08)
         _add_textbox(slide, left + Cm(1.96), card_top + Cm(0.83), card_w - Cm(3.02), Cm(0.38), label, size=11.3, bold=True, color=TEXT_DARK)
-        _add_textbox(slide, left + Cm(1.96), card_top + Cm(1.43), card_w - Cm(3.02), Cm(0.98), f"{value:,.0f}", size=30, bold=True, color=ACCENT)
+        numeric_value = _coerce_number(value)
+        display_value = f"{numeric_value:,.0f}" if numeric_value is not None else "N/A"
+        value_color = ACCENT if display_value != "N/A" else TEXT_MID
+        _add_textbox(slide, left + Cm(1.96), card_top + Cm(1.43), card_w - Cm(3.02), Cm(0.98), display_value, size=30, bold=True, color=value_color)
         _add_textbox(slide, left + Cm(1.96), card_top + Cm(2.5), card_w - Cm(3.02), Cm(0.46), note, size=10, color=TEXT_MID)
 
         spark_base = left + card_w - Cm(1.68)
         spark_y = card_top + Cm(1.14)
-        for s_idx, h in enumerate([0.1, 0.2, 0.32, 0.46, 0.62, 0.8]):
+        spark_heights = [0.1, 0.2, 0.32, 0.46, 0.62, 0.8] if display_value != "N/A" else [0.18, 0.18, 0.18, 0.18, 0.18, 0.18]
+        spark_color = ACCENT_3 if display_value != "N/A" else GRID_COLOR
+        for s_idx, h in enumerate(spark_heights):
             bar = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, spark_base + Cm(0.17 * s_idx), spark_y + Cm(0.82 - h), Cm(0.1), Cm(h))
             bar.fill.solid()
-            bar.fill.fore_color.rgb = ACCENT_3
+            bar.fill.fore_color.rgb = spark_color
             bar.line.fill.background()
 
         track_left = left + Cm(0.52)
@@ -1018,11 +1045,12 @@ def _add_slide2_metric_cards(slide, metrics):
         track.fill.fore_color.rgb = GRID_COLOR
         track.line.fill.background()
 
-        fill_w = int(max(Cm(0.72), track_w * (value / max_value)))
-        fill = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, track_left, track_top, fill_w, Cm(0.16))
-        fill.fill.solid()
-        fill.fill.fore_color.rgb = accents[idx % len(accents)]
-        fill.line.fill.background()
+        if numeric_value is not None:
+            fill_w = int(max(Cm(0.72), track_w * (numeric_value / max_value)))
+            fill = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, track_left, track_top, fill_w, Cm(0.16))
+            fill.fill.solid()
+            fill.fill.fore_color.rgb = accents[idx % len(accents)]
+            fill.line.fill.background()
 
 
 def _collect_existing_slide_points(slide_data):
@@ -1148,10 +1176,13 @@ def _load_market_metrics(session_dir):
     except Exception:
         data = {}
     prospect = data.get("prospect", {}) or {}
+    semrush_unavailable = str(((data.get("availability", {}) or {}).get("semrush") or "")).lower() == "unavailable"
     return {
-        "organic_traffic": prospect.get("organic_traffic", 0),
-        "authority_score": prospect.get("authority_score", 0),
-        "market_value": prospect.get("organic_traffic_value", 0),
+        "organic_traffic": None if semrush_unavailable else prospect.get("organic_traffic"),
+        "authority_score": None if semrush_unavailable else prospect.get("authority_score"),
+        "market_value": None if semrush_unavailable else prospect.get("organic_traffic_value"),
+        "semrush_unavailable": semrush_unavailable,
+        "warning": ((data.get("availability", {}) or {}).get("warning") or ""),
     }
 
 def _build_dynamic_subtitle(context):

@@ -1168,17 +1168,17 @@ a { color: inherit; text-decoration: none; }
   flex-direction: column;
   height: 100%;
   min-height: inherit;
-  padding: 18px 18px 15px;
+  padding: 18px 18px 18px;
   position: relative;
   gap: 10px;
 }
 
 .page-overview .overview-kpi-top {
   display: grid;
-  grid-template-columns: 62px 1fr 70px;
+  grid-template-columns: 62px 1fr;
   align-items: start;
   gap: 10px;
-  min-height: 72px;
+  min-height: 82px;
 }
 
 .page-overview .overview-kpi-icon-badge {
@@ -1222,10 +1222,14 @@ a { color: inherit; text-decoration: none; }
 }
 
 .page-overview .overview-kpi-graph {
-  align-self: end;
-  justify-self: end;
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
   width: 62px;
-  padding-bottom: 0;
+  height: 52px;
 }
 
 .page-overview .overview-spark {
@@ -1258,16 +1262,23 @@ a { color: inherit; text-decoration: none; }
 
 .page-overview .overview-kpi-meta {
   margin-top: auto;
-  min-height: 34px;
-  align-items: center;
+  min-height: 40px;
+  align-items: flex-end;
   gap: 6px 9px;
-  padding-right: 70px;
+  padding-right: 88px;
   font-size: 10.5px;
 }
 
+.page-overview .overview-kpi-chip {
+  padding: 4px 9px;
+  gap: 0;
+  font-size: 10.5px;
+  letter-spacing: 0;
+}
+
 .page-overview .overview-kpi-meter-row {
-  padding-right: 70px;
-  margin-top: -1px;
+  padding-right: 88px;
+  margin-top: 0;
 }
 
 .page-overview .overview-kpi-meter {

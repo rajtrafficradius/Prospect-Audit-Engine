@@ -1,6 +1,6 @@
 ﻿/* global React, ReactDOM */
 
-const { useEffect, useMemo, useRef, useState } = React;
+const { useCallback, useEffect, useMemo, useRef, useState } = React;
 
 const STORAGE_KEYS = {
   theme: 'radius-theme',
@@ -198,6 +198,7 @@ const OverviewMetricCard = ({
   trendState,
   metaText,
   secondaryMeta,
+  metaBadges,
   sparkVariant = 'default',
   showMeter = false,
   meterWidth = 0,
@@ -215,12 +216,16 @@ const OverviewMetricCard = ({
             {unit ? <span className="unit">{unit}</span> : null}
           </div>
         </div>
-        <div className="overview-kpi-graph">
-          <OverviewSpark variant={sparkVariant} />
-        </div>
       </div>
       <div className="kpi-meta overview-kpi-meta">
         {trendText ? <span className={`kpi-trend ${trendState}`}>{trendText}</span> : null}
+        {Array.isArray(metaBadges)
+          ? metaBadges.map((badge) => (
+              <span key={badge} className="kpi-trend up overview-kpi-chip">
+                {badge}
+              </span>
+            ))
+          : null}
         {metaText ? <span>{metaText}</span> : null}
         {secondaryMeta ? <span>{secondaryMeta}</span> : null}
       </div>
@@ -231,6 +236,9 @@ const OverviewMetricCard = ({
           </div>
         </div>
       ) : null}
+      <div className="overview-kpi-graph" aria-hidden="true">
+        <OverviewSpark variant={sparkVariant} />
+      </div>
     </div>
   </div>
 );
@@ -301,6 +309,15 @@ const detectNodeUpdate = (rawText) => {
   }
 
   return null;
+};
+
+const detectProgressUpdate = (rawText) => {
+  const match = rawText.match(/\[PROGRESS\]\s+(\d+)%\s*\|\s*(.*)$/i);
+  if (!match) return null;
+  return {
+    percent: Number(match[1] || 0),
+    detail: (match[2] || '').trim(),
+  };
 };
 
 const ThemeToggle = ({ theme, setTheme, compact = false }) => (
@@ -555,6 +572,13 @@ const Topbar = ({ route, theme, setTheme, setRoute, currentRun, signOut }) => (
 );
 
 const Dashboard = ({ history, currentRun, setRoute }) => {
+  const [semrushState, setSemrushState] = useState({
+    loading: true,
+    available: false,
+    formatted_remaining_units: null,
+    label: '',
+    message: 'Checking live balance',
+  });
   const completed = history.filter((item) => item.status === 'completed').length;
   const failed = history.filter((item) => item.status === 'failed').length;
   const total = history.length;
@@ -564,15 +588,66 @@ const Dashboard = ({ history, currentRun, setRoute }) => {
   const activeDomain = currentRun?.domain || recent[0]?.domain || 'Awaiting new audit';
   const activeJob = currentRun?.jobId ? currentRun.jobId.slice(0, 8) : recent[0]?.archive_id?.slice(0, 8) || 'standby';
   const avgRunTime = recent.length ? '3:42' : '0:00';
-  const semrushUnits = Math.max(42000, total * 3280);
   const shipped = completed * 3;
-  const semrushPercent = Math.min(99, Math.round((semrushUnits / 1000000) * 100));
   const streamLabel = currentRun?.status === 'running' ? 'AGENT STREAM' : 'LAST RUN';
   const streamCopy = currentRun?.status === 'running'
     ? `${activeCompany} analyzed ${activeDomain}`
     : recent[0]
       ? `${recent[0].company || 'Recent audit'} completed ${formatArchiveDate(recent[0])}`
       : 'Awaiting first audit launch';
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchJson('/api/semrush-units')
+      .then((data) => {
+        if (!isMounted) return;
+        setSemrushState({
+          loading: false,
+          available: !!data?.available,
+          formatted_remaining_units: data?.formatted_remaining_units || null,
+          label: data?.label || '',
+          message: data?.message || 'SEMrush unavailable',
+        });
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setSemrushState({
+          loading: false,
+          available: false,
+          formatted_remaining_units: null,
+          label: '',
+          message: 'SEMrush unavailable',
+        });
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const semrushValue = semrushState.loading
+    ? '...'
+    : semrushState.available
+      ? semrushState.formatted_remaining_units
+      : 'N/A';
+  const semrushUnit = semrushState.available ? semrushState.label : '';
+  const semrushMeta = semrushState.loading
+    ? 'Checking live balance'
+    : semrushState.message;
+  const semrushSecondary = semrushState.available ? 'via SEMRUSH_API_KEY' : '';
+  const hasUsageData = (usage) => !!usage && Number(usage?.openai_calls || 0) > 0;
+  const currentUsageActive = hasUsageData(currentRun?.usage);
+  const recentUsageActive = hasUsageData(recent[0]?.usage);
+  const latestUsage = currentUsageActive ? currentRun.usage : (recentUsageActive ? recent[0].usage : null);
+  const latestUsageContext = currentUsageActive ? (currentRun?.usage_context || null) : (recentUsageActive ? (recent[0]?.usage_context || null) : null);
+  const usageAvailable = !!latestUsage;
+  const formatUsageNumber = (value) => Number(value || 0).toLocaleString();
+  const formatUsageCost = (value) => `$${Number(value || 0).toFixed(4)}`;
+  const usageModels = usageAvailable
+    ? (latestUsage?.models_used?.length ? latestUsage.models_used.join(', ') : (latestUsage?.last_model || 'Not available'))
+    : 'Not available';
+  const apiErrorMessage = latestUsageContext?.api_error_message || 'Not available';
 
   return (
     <div className="page fade-in page-overview">
@@ -637,27 +712,22 @@ const Dashboard = ({ history, currentRun, setRoute }) => {
         <OverviewMetricCard
           icon="bar"
           label="SEMRUSH UNITS"
-          value={`${Math.round(semrushUnits / 1000)}k`}
-          unit="/ 1.0M"
-          metaText={`${semrushPercent}% used`}
-          secondaryMeta="resets in 18 days"
+          value={semrushValue}
+          unit={semrushUnit}
+          metaText={semrushMeta}
+          secondaryMeta={semrushSecondary}
           sparkVariant="rise"
-          showMeter
-          meterWidth={semrushPercent}
         />
         <OverviewMetricCard
           icon="package"
           label="DELIVERABLES SHIPPED"
           value={shipped || 0}
-          trendText={`DOCX ${completed}`}
-          trendState="up"
-          metaText={`XLSX ${completed}`}
-          secondaryMeta={`PPTX ${completed}`}
+          metaBadges={[`DOCX ${completed}`, `XLSX ${completed}`, `PPTX ${completed}`]}
           sparkVariant="shipped"
         />
       </div>
 
-      <div className="grid-2 overview-grid">
+      <div className="grid-3 overview-grid">
         <div className="card overview-card">
           <div className="card-header">
             <h3>
@@ -692,6 +762,36 @@ const Dashboard = ({ history, currentRun, setRoute }) => {
               <div className="overview-mini-row"><span>Run ref</span><strong>{activeJob}</strong></div>
               <div className="overview-mini-row"><span>Pipeline</span><strong>{currentRun?.status === 'running' ? 'Active orchestration' : 'Standby'}</strong></div>
             </div>
+          </div>
+        </div>
+
+        <div className="card overview-card">
+          <div className="card-header">
+            <h3>
+              <Icon name="cpu" /> API Usage / Run Cost
+            </h3>
+            <span className={`badge ${usageAvailable ? 'badge-accent' : ''}`}>
+              {usageAvailable ? 'latest audit' : 'waiting'}
+            </span>
+          </div>
+          <div className="card-body overview-card-body">
+            {[
+              ['OpenAI / LLM calls', usageAvailable ? formatUsageNumber(latestUsage.openai_calls) : 'Not available'],
+              ['Input tokens', usageAvailable ? formatUsageNumber(latestUsage.input_tokens) : 'Not available'],
+              ['Output tokens', usageAvailable ? formatUsageNumber(latestUsage.output_tokens) : 'Not available'],
+              ['Total tokens', usageAvailable ? formatUsageNumber(latestUsage.total_tokens) : 'Not available'],
+              ['Estimated cost', usageAvailable ? formatUsageCost(latestUsage.estimated_openai_cost) : 'Not available'],
+              ['Model used', usageAvailable ? usageModels : 'Not available'],
+              ['API error message', usageAvailable ? apiErrorMessage : 'Not available'],
+            ].map(([item, meta], index, arr) => (
+              <div key={item} className="overview-health-row" style={{ borderBottom: index < arr.length - 1 ? '1px solid var(--border)' : 0 }}>
+                <div className="overview-health-main">
+                  <span className="overview-health-dot" />
+                  <span>{item}</span>
+                </div>
+                <div className="overview-health-meta">{meta}</div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -1208,7 +1308,18 @@ const LiveAudit = ({ currentRun, onRefreshHistory, onRunUpdate }) => {
   const [status, setStatus] = useState(currentRun?.status || 'queued');
   const [message, setMessage] = useState(currentRun?.message || 'Waiting for orchestration to begin.');
   const [deliverables, setDeliverables] = useState([]);
+  const [progressPct, setProgressPct] = useState(0);
   const logRef = useRef(null);
+
+  useEffect(() => {
+    setLogs([]);
+    setNodeStates(defaultNodeState());
+    setStatus(currentRun?.status || 'queued');
+    setMessage(currentRun?.message || 'Waiting for orchestration to begin.');
+    setDeliverables([]);
+    setProgressPct(0);
+    setTab('logs');
+  }, [currentRun?.jobId]);
 
   useEffect(() => {
     if (!currentRun?.jobId) return undefined;
@@ -1221,6 +1332,11 @@ const LiveAudit = ({ currentRun, onRefreshHistory, onRunUpdate }) => {
       const payload = JSON.parse(event.data);
       if (payload.log) {
         setLogs((prev) => [...prev, payload.log]);
+        const progressUpdate = detectProgressUpdate(payload.log);
+        if (progressUpdate) {
+          setProgressPct((prev) => Math.max(prev, Math.min(99, progressUpdate.percent)));
+          if (progressUpdate.detail) setMessage(progressUpdate.detail);
+        }
         const update = detectNodeUpdate(payload.log);
         if (update?.key) {
           setNodeStates((prev) => advanceNodeState(prev, update.key, update.type, update.detail));
@@ -1235,14 +1351,18 @@ const LiveAudit = ({ currentRun, onRefreshHistory, onRunUpdate }) => {
           const statusData = await fetchJson(`/api/status/${currentRun.jobId}`);
           setStatus(statusData.status);
           setMessage(statusData.message || (statusData.status === 'completed' ? 'Audit completed successfully.' : 'Audit failed.'));
-          setDeliverables(collectDeliverables(statusData, currentRun.jobId));
+          const nextDeliverables = collectDeliverables(statusData, currentRun.jobId);
+          setDeliverables(nextDeliverables);
+          if (nextDeliverables.length === 3 && statusData.status === 'completed') {
+            setProgressPct(100);
+          }
           onRunUpdate?.((prev) =>
             prev
               ? {
                   ...prev,
                   status: statusData.status,
                   message: statusData.message || prev.message,
-                  deliverables: collectDeliverables(statusData, currentRun.jobId),
+                  deliverables: nextDeliverables,
                 }
               : prev
           );
@@ -1259,12 +1379,14 @@ const LiveAudit = ({ currentRun, onRefreshHistory, onRunUpdate }) => {
         } catch (error) {
           setMessage(error.message);
         }
+        closed = true;
         source.close();
       }
     };
 
     source.onerror = () => {
       if (!closed) {
+        closed = true;
         source.close();
       }
     };
@@ -1284,7 +1406,11 @@ const LiveAudit = ({ currentRun, onRefreshHistory, onRunUpdate }) => {
     () => PIPELINE_NODES.find((node) => nodeStates[node.key]?.status === 'active'),
     [nodeStates]
   );
-  const overallPct = Math.round((doneCount / PIPELINE_NODES.length) * 100);
+  const deliverablesReady = deliverables.length === 3;
+  const nodePct = Math.round((doneCount / PIPELINE_NODES.length) * 100);
+  const overallPct = deliverablesReady && status === 'completed'
+    ? 100
+    : Math.min(99, Math.max(progressPct, nodePct));
 
   if (!currentRun?.jobId) {
     return (
@@ -1607,20 +1733,56 @@ const SAMPLE_RAG_INDEXES = [
   { domain: 'orbitfinance.au', chunks: 312, size: '21.4 MB', model: 'text-embedding-3-large', dim: '3072', updated: '5h ago' },
 ];
 
-const SAMPLE_RUN_LOGS = [
-  ['14:32:18.044', 'INFO', 'Vision-CRO', 'Crawl complete · 14 routes · 312 entities'],
-  ['14:32:14.812', 'SUCCESS', 'orchestrator', '[+] extraction completed successfully (4.7s)'],
-  ['14:32:12.107', 'INFO', 'Vision-CRO', 'DOM parse · forms: 18 · schema: 4'],
-  ['14:32:08.298', 'PROCESS', 'orchestrator', '[Node] Phase 1 -> Content Extraction'],
-  ['14:32:07.991', 'INFO', 'system', 'OPENAI_API_KEY loaded (sk-proj-...7f2k)'],
-  ['14:31:58.432', 'SUCCESS', 'orchestrator', '[+] strategy_synthesis completed successfully (38.2s)'],
-  ['14:31:57.211', 'INFO', 'Strategist-4o', '12-month action plan · 36 tasks · 2,140 tokens'],
-  ['14:31:42.804', 'WARN', 'Strategist-4o', 'Soft retry · rate limit · backoff 1.4s'],
-  ['14:31:18.221', 'INFO', 'RAG-Builder', '218 chunks embedded · 14.2MB FAISS'],
-  ['14:30:54.118', 'SUCCESS', 'orchestrator', '[+] technical_audit completed successfully (3.6s)'],
-  ['14:30:51.804', 'WARN', 'Tech-Auditor', 'llms.txt missing · NAP score 88%'],
-  ['14:30:34.021', 'ERROR', 'SEMrush-Scout', 'Quota warning · 412k of 1M units consumed'],
-];
+const normalizeRunLogEntry = (entry, idx) => ({
+  index: entry?.index ?? idx,
+  timestamp: entry?.timestamp || '—',
+  level: entry?.level || 'INFO',
+  source: entry?.source || 'system',
+  message: entry?.message || entry?.raw || '',
+  raw: entry?.raw || entry?.message || '',
+});
+
+const formatExportDate = (value) => {
+  const text = String(value || '').trim();
+  if (/^\d{8}_\d{6}$/.test(text)) {
+    return `${text.slice(0, 4)}-${text.slice(4, 6)}-${text.slice(6, 8)}`;
+  }
+  const parsed = new Date(text);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().slice(0, 10);
+  }
+  return new Date().toISOString().slice(0, 10);
+};
+
+const sanitizeExportName = (value) => String(value || 'Audit')
+  .replace(/[^\w\s-]/g, '')
+  .trim()
+  .replace(/\s+/g, '_') || 'Audit';
+
+const exportRunLogs = (jobId, logs, companyName, runDate) => {
+  if (!logs.length) return;
+  const rows = [
+    ['Time', 'Level', 'Source', 'Message'],
+    ...logs.map((item) => [
+      item.timestamp,
+      item.level,
+      item.source,
+      (item.message || '').replace(/\r?\n/g, ' '),
+    ]),
+  ];
+  const csv = rows
+    .map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `RunLogs_${sanitizeExportName(companyName)}_${formatExportDate(runDate)}.csv`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+};
 
 const SampleStatCard = ({ icon, label, value, meta, trend }) => (
   <div className="kpi sample-stat-card">
@@ -1828,43 +1990,156 @@ const RagIndexPage = () => (
   </div>
 );
 
-const RunLogsPage = () => {
+const RunLogsPage = ({ currentRun, history }) => {
   const [filter, setFilter] = useState('All');
-  const filtered = SAMPLE_RUN_LOGS.filter((item) => {
+  const [logs, setLogs] = useState([]);
+  const [status, setStatus] = useState('unknown');
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const latestHistoryRun = history?.[0] || null;
+  const targetJobId = currentRun?.jobId || latestHistoryRun?.archive_id || null;
+  const targetLabel = currentRun?.jobId === targetJobId
+    ? (currentRun?.company || currentRun?.domain || 'Latest audit')
+    : (latestHistoryRun?.company || latestHistoryRun?.domain || 'Latest audit');
+  const exportCompanyName = currentRun?.jobId === targetJobId
+    ? (currentRun?.company || currentRun?.domain || 'Audit')
+    : (latestHistoryRun?.company || latestHistoryRun?.domain || 'Audit');
+  const exportRunDate = latestHistoryRun?.timestamp || latestHistoryRun?.date || new Date().toISOString().slice(0, 10);
+  const isStreaming = currentRun?.jobId === targetJobId && !['completed', 'failed'].includes(status);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!targetJobId) {
+      setLogs([]);
+      setStatus('unknown');
+      setLoadError('');
+      return undefined;
+    }
+
+    setLoading(true);
+    setLogs([]);
+    setLoadError('');
+
+    fetchJson(`/api/run-logs/${targetJobId}`)
+      .then((data) => {
+        if (cancelled) return;
+        const nextLogs = (data.logs || []).map((entry, idx) => normalizeRunLogEntry(entry, idx));
+        setLogs(nextLogs);
+        setStatus(data.status || 'unknown');
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setLogs([]);
+        setStatus('unknown');
+        setLoadError(error.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [targetJobId]);
+
+  useEffect(() => {
+    if (!targetJobId || currentRun?.jobId !== targetJobId || ['completed', 'failed'].includes(currentRun?.status || '')) {
+      return undefined;
+    }
+
+    let closed = false;
+    const source = new EventSource(`/api/stream-logs/${targetJobId}`);
+
+    source.onmessage = (event) => {
+      if (closed) return;
+      const payload = JSON.parse(event.data);
+      if (payload.log_entry) {
+        const nextEntry = normalizeRunLogEntry(payload.log_entry, payload.log_entry.index);
+        setLogs((prev) => {
+          if (prev.some((item) => item.index === nextEntry.index)) return prev;
+          return [...prev, nextEntry];
+        });
+      }
+      if (payload.done) {
+        setStatus(payload.status || 'completed');
+        closed = true;
+        source.close();
+      }
+    };
+
+    source.onerror = () => {
+      if (!closed) {
+        closed = true;
+        source.close();
+      }
+    };
+
+    return () => {
+      closed = true;
+      source.close();
+    };
+  }, [targetJobId, currentRun?.jobId, currentRun?.status]);
+
+  const filtered = logs.filter((item) => {
     if (filter === 'All') return true;
-    if (filter === 'Warn+') return ['WARN', 'ERROR'].includes(item[1]);
-    if (filter === 'Errors') return item[1] === 'ERROR';
+    if (filter === 'Warn+') return ['WARN', 'ERROR'].includes(item.level);
+    if (filter === 'Errors') return item.level === 'ERROR';
     return true;
   });
+  const badgeClass = isStreaming ? 'badge-accent' : status === 'failed' ? 'badge-danger' : targetJobId ? 'badge-success' : '';
+  const badgeText = isStreaming ? 'streaming' : status === 'failed' ? 'failed' : targetJobId ? 'completed' : 'idle';
+
   return (
     <div className="page fade-in">
       <div className="page-head">
         <div>
           <h1>Run Logs</h1>
-          <div className="sub">Streamed output across all agents - last 24 hours. Sample records shown until full persisted run logs are connected.</div>
+          <div className="sub">
+            {targetJobId
+              ? `Audit logs for ${targetLabel} · ${targetJobId.slice(0, 8)}`
+              : 'No run logs available.'}
+          </div>
         </div>
         <div className="page-head-actions">
           {['All', 'Warn+', 'Errors'].map((item) => (
             <button key={item} className={`btn btn-sm ${filter === item ? 'btn-accent' : 'btn-ghost'}`} type="button" onClick={() => setFilter(item)}>{item}</button>
           ))}
-          <button className="btn btn-ghost btn-sm" type="button"><Icon name="download" size={13} /> Export</button>
+          <button className="btn btn-ghost btn-sm" type="button" onClick={() => exportRunLogs(targetJobId, filtered, exportCompanyName, exportRunDate)} disabled={!filtered.length}>
+            <Icon name="download" size={13} /> Export
+          </button>
         </div>
       </div>
       <div className="card">
-        <div className="card-header"><h3><Icon name="terminal" /> Live tail - {filtered.length} lines</h3><span className="badge badge-accent"><span className="dot" /> streaming</span></div>
+        <div className="card-header">
+          <h3><Icon name="terminal" /> Live tail - {filtered.length} lines</h3>
+          <span className={`badge ${badgeClass}`}>
+            {isStreaming ? <span className="dot" /> : null}
+            {badgeText}
+          </span>
+        </div>
         <div className="card-body flush">
-          <table className="tbl tbl-logs">
-            <tbody>
-              {filtered.map(([time, level, source, message], idx) => (
-                <tr key={`${time}-${idx}`}>
-                  <td style={{ width: 110, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{time}</td>
-                  <td style={{ width: 90 }}><span className={`inline-pill ${level === 'ERROR' ? 'danger' : level === 'WARN' ? 'accent' : level === 'SUCCESS' ? 'success' : 'muted'}`}>{level}</span></td>
-                  <td style={{ width: 140, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{source}</td>
-                  <td>{message}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {!targetJobId && !loading ? (
+            <div className="helper-line" style={{ padding: '16px 20px' }}>No run logs available.</div>
+          ) : loadError ? (
+            <div className="helper-line" style={{ padding: '16px 20px', color: 'var(--danger)' }}>{loadError}</div>
+          ) : !filtered.length && !loading ? (
+            <div className="helper-line" style={{ padding: '16px 20px' }}>
+              {logs.length ? 'No logs match the current filter.' : 'No run logs available.'}
+            </div>
+          ) : (
+            <table className="tbl tbl-logs">
+              <tbody>
+                {filtered.map((item, idx) => (
+                  <tr key={`${item.index}-${idx}`}>
+                    <td style={{ width: 110, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{item.timestamp}</td>
+                    <td style={{ width: 90 }}><span className={`inline-pill ${item.level === 'ERROR' ? 'danger' : item.level === 'WARN' ? 'accent' : item.level === 'SUCCESS' ? 'success' : 'muted'}`}>{item.level}</span></td>
+                    <td style={{ width: 140, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{item.source}</td>
+                    <td>{item.message}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>
@@ -2186,7 +2461,7 @@ const App = () => {
     return () => window.removeEventListener('keydown', handleKeydown);
   }, []);
 
-  const refreshHistory = async () => {
+  const refreshHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
       const data = await fetchJson('/api/history');
@@ -2197,11 +2472,11 @@ const App = () => {
     } finally {
       setHistoryLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (session) refreshHistory();
-  }, [session]);
+  }, [session, refreshHistory]);
 
   const handleSignIn = (payload) => {
     setSession(payload);
@@ -2259,7 +2534,7 @@ const App = () => {
     else if (route === 'engines') body = <AIEnginesPage />;
     else if (route === 'agents') body = <AgentsPage />;
     else if (route === 'rag') body = <RagIndexPage />;
-    else if (route === 'runlogs') body = <RunLogsPage />;
+    else if (route === 'runlogs') body = <RunLogsPage currentRun={currentRun} history={history} />;
     else if (route === 'settings') body = <SettingsPage session={session} />;
     else body = <Dashboard history={history} currentRun={currentRun} setRoute={setRoute} />;
   }

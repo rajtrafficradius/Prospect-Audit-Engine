@@ -4,6 +4,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 from openai import OpenAI
 from dotenv import load_dotenv
+from usage_tracker import record_openai_usage
 
 class QualityWin(BaseModel):
     title: str = Field(description="The title of the quick win.")
@@ -160,6 +161,7 @@ def synthesize_strategy(business_data: dict, market_data: dict, audit_data: dict
             response_format=StrategyNarrative,
             temperature=0.3
         )
+        record_openai_usage(completion, "gpt-4o")
         last_payload = completion.choices[0].message.parsed.model_dump()
         if _strategy_is_complete(last_payload):
             return last_payload

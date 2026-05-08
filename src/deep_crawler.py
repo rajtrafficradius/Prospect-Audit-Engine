@@ -10,6 +10,7 @@ import numpy as np
 import tiktoken
 from openai import AsyncOpenAI, OpenAI
 from dotenv import load_dotenv
+from usage_tracker import record_openai_usage
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"), override=False)
 
@@ -200,6 +201,7 @@ class DeepCrawlerRAG:
         for i in range(0, len(all_chunks), batch_size):
             batch = [c["text"] for c in all_chunks[i:i+batch_size]]
             resp = self.sync_client.embeddings.create(input=batch, model="text-embedding-3-small")
+            record_openai_usage(resp, "text-embedding-3-small")
             embeddings.extend([emb.embedding for emb in resp.data])
             
         embeddings_np = np.array(embeddings).astype('float32')
@@ -226,6 +228,7 @@ class DeepCrawlerRAG:
             chunks_data = json.load(f)
             
         emb_resp = self.sync_client.embeddings.create(input=[query], model="text-embedding-3-small")
+        record_openai_usage(emb_resp, "text-embedding-3-small")
         q_emb = np.array([emb_resp.data[0].embedding]).astype('float32')
         
         distances, indices = index.search(q_emb, top_k)

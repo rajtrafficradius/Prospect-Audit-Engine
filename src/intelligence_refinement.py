@@ -3,6 +3,7 @@ import json
 from typing import List, Optional
 from openai import OpenAI
 from pydantic import BaseModel, Field
+from usage_tracker import record_openai_usage
 
 class RefinementResult(BaseModel):
     relevant_keywords: List[str] = Field(description="Keywords that are strictly relevant to the commercial core of the business.")
@@ -58,6 +59,7 @@ def refine_intelligence(market_intel: dict, business_analysis: dict, openai_api_
             response_format=RefinementResult,
             temperature=0
         )
+        record_openai_usage(completion, "gpt-4o-mini")
         
         refinement = completion.choices[0].message.parsed
         

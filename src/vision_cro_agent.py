@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from typing import List
 from openai import OpenAI
 from dotenv import load_dotenv
+from usage_tracker import record_openai_usage
 
 class CroFinding(BaseModel):
     area: str = Field(description="The UI/UX element being critiqued (e.g., 'Primary CTA', 'Trust Signals', 'Lead Capture Form', 'Above-the-Fold Value Proposition').")
@@ -61,6 +62,7 @@ def analyze_homepage_ui(image_path: str) -> dict:
         response_format=CroAssessment,
         temperature=0.1
     )
+    record_openai_usage(completion, "gpt-4o")
     
     return completion.choices[0].message.parsed.model_dump()
 

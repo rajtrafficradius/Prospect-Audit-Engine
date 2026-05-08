@@ -3,6 +3,7 @@ import json
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from openai import OpenAI
+from usage_tracker import record_openai_usage
 
 # ---------------------------------------------------------
 # Define the Pydantic Schema that mirrors business_analysis.json
@@ -97,6 +98,7 @@ def extract_business_info(scraped_pages: List[dict], openai_api_key: Optional[st
         response_format=BusinessAnalysis,
         temperature=0.1
     )
+    record_openai_usage(completion, "gpt-4o")
 
     structured_data = completion.choices[0].message.parsed.model_dump()
     return structured_data
